@@ -34,7 +34,7 @@ function History() {
                   })}
                 </span>
                 <span className="font-mono text-[12px] tabular-nums text-white/45">
-                  {d.playerCount} играчи · {d.voteCount} гласа
+                  {d.playerCount} играчи · {d.voteCount} {d.voteCount === 1 ? "глас" : "гласа"}
                 </span>
               </Link>
             </li>
