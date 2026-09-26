@@ -2,11 +2,25 @@
 // read them with useSuspenseQuery, so a page never renders half-loaded.
 
 import { queryOptions } from "@tanstack/react-query";
-import { getMatchday, getMatchdays, getPlayers } from "@/server/functions";
+import {
+  getFullRoster,
+  getLog,
+  getMatchday,
+  getMatchdays,
+  getPickList,
+  getSession,
+} from "@/server/functions";
 
-export const playersQuery = queryOptions({
-  queryKey: ["players"],
-  queryFn: () => getPlayers(),
+/** Language and whether the admin is signed in. Changes only on explicit action. */
+export const sessionQuery = queryOptions({
+  queryKey: ["session"],
+  queryFn: () => getSession(),
+  staleTime: Infinity,
+});
+
+export const pickListQuery = queryOptions({
+  queryKey: ["pick-list"],
+  queryFn: () => getPickList(),
 });
 
 export const matchdaysQuery = queryOptions({
@@ -21,3 +35,13 @@ export const matchdayQuery = (id: string) =>
     // Votes arrive from other phones; keep the page current without a manual refresh.
     refetchInterval: 5_000,
   });
+
+export const fullRosterQuery = queryOptions({
+  queryKey: ["full-roster"],
+  queryFn: () => getFullRoster(),
+});
+
+export const logQuery = queryOptions({
+  queryKey: ["log"],
+  queryFn: () => getLog(),
+});

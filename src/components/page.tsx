@@ -17,7 +17,7 @@ export function PageHead({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-6 border-b border-white/[0.06] pb-8">
+    <header className="flex flex-wrap items-end justify-between gap-6 border-b border-fg/[0.06] pb-8">
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1
@@ -29,7 +29,7 @@ export function PageHead({
           {title}
         </h1>
         {lead && (
-          <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-white/55">
+          <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-fg/55">
             {lead}
           </div>
         )}
@@ -57,7 +57,7 @@ export function Section({
         {actions}
       </div>
       {note && (
-        <p className="mt-2 max-w-[46rem] text-[13px] leading-[1.7] text-white/45">{note}</p>
+        <p className="mt-2 max-w-[46rem] text-[13px] leading-[1.7] text-fg/45">{note}</p>
       )}
       <div className="mt-6">{children}</div>
     </section>
@@ -97,7 +97,7 @@ export function Figure({
 /** Empty is a designed state with its own copy, not blank space. */
 export function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/[0.11] bg-white/[0.012] px-6 py-10 text-center text-[13.5px] text-white/50">
+    <div className="rounded-xl border border-dashed border-fg/[0.11] bg-fg/[0.012] px-6 py-10 text-center text-[13.5px] text-fg/50">
       {children}
     </div>
   );

@@ -1,8 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Empty, PageHead, PANE } from "@/components/page";
+import { useI18n } from "@/lib/i18n";
 import { matchdaysQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import type { MatchdaySummary } from "@/server/repo";
 
 export const Route = createFileRoute("/history")({
   loader: ({ context }) => context.queryClient.ensureQueryData(matchdaysQuery),
@@ -10,31 +12,25 @@ export const Route = createFileRoute("/history")({
 });
 
 function History() {
+  const { t } = useI18n();
   const { data: days } = useSuspenseQuery(matchdaysQuery);
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
-      <PageHead eyebrow="Архив" title="Минали мачове" lead="Последните 20 дни с игра." />
+      <PageHead eyebrow={t.history.eyebrow} title={t.history.title} lead={t.history.lead} />
       {days.length === 0 ? (
-        <Empty>Още няма мачове. Започни от „Нов мач“.</Empty>
+        <Empty>{t.history.empty}</Empty>
       ) : (
-        <ul className="border-t border-white/[0.06]">
+        <ul className="border-t border-fg/[0.07]">
           {days.map((d) => (
-            <li key={d.id} className="border-b border-white/[0.06]">
+            <li key={d.id} className="border-b border-fg/[0.07]">
               <Link
                 to="/match/$id"
                 params={{ id: d.id }}
-                className="flex items-baseline justify-between gap-4 py-3.5 text-[14px] hover:text-white"
+                className="flex items-baseline justify-between gap-4 py-3.5 text-[14px] hover:text-fg"
               >
-                <span className="text-white/80">
-                  {new Date(d.playedOn).toLocaleDateString("bg-BG", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-                <span className="font-mono text-[12px] tabular-nums text-white/45">
-                  {d.playerCount} играчи · {d.voteCount} {d.voteCount === 1 ? "глас" : "гласа"}
+                <span className="text-fg/80">{t.date(d.playedOn, "short")}</span>
+                <span className="font-mono text-[12px] tabular-nums text-fg/50">
+                  <Outcome day={d} />
                 </span>
               </Link>
             </li>
@@ -42,5 +38,19 @@ function History() {
         </ul>
       )}
     </div>
+  );
+}
+
+function Outcome({ day }: { day: MatchdaySummary }) {
+  const { t } = useI18n();
+  if (!day.locked) return <>{t.history.open} · {t.match.votes(day.voteCount)}</>;
+  if (!day.winner) return <>{t.history.lockedNoResult}</>;
+  const score = day.scoreA !== null && day.scoreB !== null ? ` · ${day.scoreA}:${day.scoreB}` : "";
+  if (day.winner === "draw") return <>{t.common.draw + score}</>;
+  const team = day.winner === "a" ? t.common.teamA : t.common.teamB;
+  return (
+    <span className={day.winner === "a" ? "text-team-a" : "text-team-b"}>
+      {t.history.won(team) + score}
+    </span>
   );
 }

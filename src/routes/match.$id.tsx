@@ -1,16 +1,26 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { AlertTriangleIcon, LoaderIcon, RefreshCwIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  LoaderIcon,
+  LockIcon,
+  LockOpenIcon,
+  RefreshCwIcon,
+  Share2Icon,
+} from "lucide-react";
 import { useState } from "react";
+import { JevTrace } from "@/components/jev-trace";
 import { Figure, PageHead, PANE, Section } from "@/components/page";
 import { ProposalCard } from "@/components/proposal-card";
-import { JevTrace } from "@/components/jev-trace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SQUAD_SIZE } from "@/domain/balance";
+import { useI18n } from "@/lib/i18n";
 import { matchdayQuery } from "@/lib/queries";
-import { useVoter } from "@/lib/use-voter";
+import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
-import { rebalance, vote } from "@/server/functions";
+import { lock, rebalance, setResult, unlock, vote } from "@/server/functions";
+import type { MatchdayView, RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/match/$id")({
   loader: async ({ context, params }) => {
@@ -20,126 +30,145 @@ export const Route = createFileRoute("/match/$id")({
   component: MatchPage,
 });
 
+const MAX_RUNS = 3;
+
 function MatchPage() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(matchdayQuery(id));
   const day = data!;
+  const { t, name, error, isAdmin } = useI18n();
   const qc = useQueryClient();
-  const [voter, setVoter] = useVoter();
-  const [draft, setDraft] = useState("");
+  const [me, setMe] = useMe();
 
   const byId = new Map(day.players.map((p) => [p.id, p]));
   const refresh = () => qc.invalidateQueries({ queryKey: ["matchday", id] });
+  const locked = day.lockedAt !== null;
+  const meInSquad = byId.has(me);
 
   const cast = useMutation({
-    mutationFn: (proposalId: string) =>
-      vote({ data: { matchdayId: id, proposalId, voter } }),
+    mutationFn: (proposalId: string) => vote({ data: { matchdayId: id, proposalId, playerId: me } }),
     onSuccess: refresh,
   });
+  const again = useMutation({ mutationFn: () => rebalance({ data: { id } }), onSuccess: refresh });
+  const doLock = useMutation({ mutationFn: () => lock({ data: { id } }), onSuccess: refresh });
+  const doUnlock = useMutation({ mutationFn: () => unlock({ data: { id } }), onSuccess: refresh });
+  const failure = [cast, again, doLock, doUnlock].find((m) => m.isError)?.error;
 
-  const again = useMutation({
-    mutationFn: () => rebalance({ data: { id } }),
-    onSuccess: refresh,
-  });
+  const votersOf = new Map<string, string[]>();
+  for (const v of day.votes) {
+    votersOf.set(v.proposalId, [...(votersOf.get(v.proposalId) ?? []), name(byId.get(v.playerId)?.name)]);
+  }
+  const top = Math.max(0, ...[...votersOf.values()].map((v) => v.length));
+  const myVote = day.votes.find((v) => v.playerId === me)?.proposalId;
+  const voted = new Set(day.votes.map((v) => v.playerId));
+  const notVoted = day.players.filter((p) => !voted.has(p.id));
+  const runsLeft = MAX_RUNS - day.runsUsed;
+  const canRebalance = !locked && day.votes.length === 0 && runsLeft > 0;
 
-  const counts = new Map<string, string[]>();
-  for (const v of day.votes) counts.set(v.proposalId, [...(counts.get(v.proposalId) ?? []), v.voter]);
-  const top = Math.max(0, ...[...counts.values()].map((v) => v.length));
-  const myVote = day.votes.find((v) => v.voter === voter)?.proposalId;
-
-  const played = new Date(day.playedOn).toLocaleDateString("bg-BG", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const chosen = day.proposals.find((p) => p.id === day.lockedProposalId);
+  const proposals = chosen
+    ? [chosen, ...day.proposals.filter((p) => p !== chosen)]
+    : day.proposals;
 
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
       <PageHead
-        eyebrow={`Мач · ${played}`}
-        title="Три варианта. Гласувайте."
-        lead="Сумите са сметнати от кода. Оценките са на Jev. Един глас на човек — ако гласуваш пак, гласът ти се мести."
+        eyebrow={t.match.eyebrow(t.date(day.playedOn))}
+        title={locked ? t.match.titleLocked : t.match.titleOpen}
+        lead={locked ? t.match.leadLocked : t.match.leadOpen}
         actions={
-          <Button
-            variant="outline"
-            disabled={again.isPending}
-            onClick={() => {
-              if (
-                day.votes.length === 0 ||
-                confirm(`Новите варианти ще изтрият ${day.votes.length} гласа. Продължаваме?`)
-              ) {
-                again.mutate();
-              }
-            }}
-          >
-            {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-            Нови варианти
-          </Button>
+          <>
+            {!locked && (
+              <Button
+                variant="outline"
+                disabled={!canRebalance || again.isPending}
+                title={
+                  day.votes.length > 0 ? t.match.againBlockedVotes : t.match.againHint(runsLeft)
+                }
+                onClick={() => again.mutate()}
+              >
+                {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+                {t.match.again}
+                <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
+              </Button>
+            )}
+            {!locked && day.proposals.length > 0 && (
+              <Button
+                disabled={doLock.isPending}
+                onClick={() => confirm(t.match.lockConfirm) && doLock.mutate()}
+              >
+                <LockIcon /> {t.match.lock}
+              </Button>
+            )}
+            {locked && chosen && <ShareButton day={day} teams={chosen} byId={byId} />}
+            {locked && isAdmin && (
+              <Button
+                variant="ghost"
+                disabled={doUnlock.isPending}
+                onClick={() => confirm(t.match.unlockConfirm) && doUnlock.mutate()}
+              >
+                <LockOpenIcon /> {t.match.unlock}
+              </Button>
+            )}
+          </>
         }
       />
 
       {day.run?.source === "fallback" && (
-        <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning/[0.06] px-4 py-3 text-[13.5px]">
+        <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning/[0.07] px-4 py-3 text-[13.5px]">
           <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" />
           <div>
-            <p className="font-medium text-warning">Тези отбори не са решени от Jev.</p>
-            <p className="mt-1 text-white/60">
-              {day.run.error} Показани са трите варианта с най-малка разлика в сумата.
+            <p className="font-medium text-warning">{t.match.fallbackTitle}</p>
+            <p className="mt-1 text-fg/60">
+              {day.run.error === "missing-key"
+                ? t.match.fallbackMissingKey
+                : t.match.fallbackError(day.run.error ?? "")}{" "}
+              {t.match.fallbackTail}
             </p>
           </div>
         </div>
       )}
 
+      {failure && <p className="text-[13px] text-destructive">{error(failure)}</p>}
+
       <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
-        <Figure label="Играчи" value={day.players.length} />
-        <Figure label="Гласове" value={day.votes.length} />
+        <Figure label={t.match.players} value={day.players.length} />
+        <Figure
+          label={t.match.voted}
+          value={
+            <>
+              {day.votes.length}
+              <span className="text-fg/35">/{SQUAD_SIZE}</span>
+            </>
+          }
+        />
         {day.run && (
           <>
             <Figure
-              label="Решено от"
-              value={day.run.source === "jev" ? day.run.model : "аритметика"}
+              label={t.match.decidedBy}
+              value={day.run.source === "jev" ? day.run.model : t.match.arithmetic}
               tone={day.run.source === "jev" ? "confirmed" : "warning"}
             />
-            <Figure label="Време" value={`${(day.run.durationMs / 1000).toFixed(2)} s`} />
+            <Figure label={t.match.time} value={`${(day.run.durationMs / 1000).toFixed(2)} s`} />
           </>
         )}
       </div>
 
-      {!voter ? (
-        <form
-          className="flex max-w-md flex-wrap items-end gap-2.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (draft.trim().length >= 2) setVoter(draft);
-          }}
-        >
-          <label className="min-w-0 flex-1">
-            <span className="eyebrow">Кой гласува?</span>
-            <Input
-              className="mt-2"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Твоето име"
-            />
-          </label>
-          <Button type="submit" disabled={draft.trim().length < 2}>
-            Готово
-          </Button>
-        </form>
-      ) : (
-        <p className="text-[13px] text-white/50">
-          Гласуваш като <span className="text-white">{voter}</span>.{" "}
-          <button type="button" className="underline underline-offset-4 hover:text-white" onClick={() => setVoter("")}>
-            Не си ти?
-          </button>
+      {!locked && (
+        <Identity players={day.players} me={me} meInSquad={meInSquad} setMe={setMe} />
+      )}
+
+      {!locked && notVoted.length > 0 && day.votes.length > 0 && (
+        <p className="text-[12.5px] text-fg/45">
+          {t.match.notVoted(notVoted.map((p) => name(p.name)).join(", "))}
         </p>
       )}
 
-      {cast.isError && <p className="text-[13px] text-destructive">{cast.error.message}</p>}
+      {locked && chosen && <ResultForm day={day} />}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {day.proposals.map((p) => {
-          const voters = counts.get(p.id) ?? [];
+        {proposals.map((p) => {
+          const voters = votersOf.get(p.id) ?? [];
           return (
             <ProposalCard
               key={p.id}
@@ -148,7 +177,9 @@ function MatchPage() {
               voters={voters}
               leading={voters.length === top && top > 0}
               mine={myVote === p.id}
-              voting={!voter || cast.isPending}
+              chosen={p.id === day.lockedProposalId}
+              canVote={!locked && meInSquad}
+              voting={cast.isPending}
               onVote={() => cast.mutate(p.id)}
             />
           );
@@ -156,13 +187,173 @@ function MatchPage() {
       </div>
 
       {day.run && (
-        <Section
-          title="Как реши Jev"
-          note="Jev не пише текст и не смята. Той отговаря на въпроси с „да/не“, „избери едно“ или „дай оценка“, и казва колко е сигурен. Ето всяка стъпка."
-        >
+        <Section title={t.match.howTitle} note={t.match.howNote}>
           <JevTrace steps={day.run.trace} />
         </Section>
       )}
     </div>
+  );
+}
+
+/** "Who are you?" — the twelve names, one tap. Remembered on this phone. */
+function Identity({
+  players,
+  me,
+  meInSquad,
+  setMe,
+}: {
+  players: RosterPlayer[];
+  me: string;
+  meInSquad: boolean;
+  setMe: (id: string) => void;
+}) {
+  const { t, name } = useI18n();
+  const [choosing, setChoosing] = useState(false);
+
+  if (me && !choosing) {
+    const self = players.find((p) => p.id === me);
+    return (
+      <p className="text-[13px] text-fg/55">
+        {meInSquad ? t.match.votingAs(name(self?.name)) : t.match.notInSquad}{" "}
+        <button
+          type="button"
+          className="underline underline-offset-4 hover:text-fg"
+          onClick={() => setChoosing(true)}
+        >
+          {t.match.notYou}
+        </button>
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <p className="eyebrow">{t.match.whoAreYou}</p>
+      <p className="mt-2 text-[13px] text-fg/50">{t.match.whoAreYouNote}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {players.map((p) => (
+          <Button
+            key={p.id}
+            size="sm"
+            variant={p.id === me ? "default" : "outline"}
+            onClick={() => {
+              setMe(p.id);
+              setChoosing(false);
+            }}
+          >
+            {name(p.name)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ResultForm({ day }: { day: MatchdayView }) {
+  const { t, error } = useI18n();
+  const qc = useQueryClient();
+  const [winner, setWinner] = useState(day.winner);
+  const [a, setA] = useState(day.scoreA?.toString() ?? "");
+  const [b, setB] = useState(day.scoreB?.toString() ?? "");
+  const save = useMutation({
+    mutationFn: () =>
+      setResult({
+        data: {
+          id: day.id,
+          winner: winner!,
+          scoreA: a === "" ? null : Number(a),
+          scoreB: b === "" ? null : Number(b),
+        },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["matchday", day.id] }),
+  });
+
+  const options = [
+    { value: "a", label: t.common.teamA, tone: "text-team-a" },
+    { value: "draw", label: t.common.draw, tone: "" },
+    { value: "b", label: t.common.teamB, tone: "text-team-b" },
+  ] as const;
+
+  return (
+    <Section title={t.match.result} note={t.match.resultNote}>
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex gap-2">
+          {options.map((o) => (
+            <Button
+              key={o.value}
+              variant={winner === o.value ? "default" : "outline"}
+              className={cn(winner !== o.value && o.tone)}
+              onClick={() => setWinner(o.value)}
+            >
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 font-mono">
+          <Input
+            inputMode="numeric"
+            className="w-16 text-center"
+            value={a}
+            onChange={(e) => setA(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            placeholder="0"
+          />
+          <span className="text-fg/40">:</span>
+          <Input
+            inputMode="numeric"
+            className="w-16 text-center"
+            value={b}
+            onChange={(e) => setB(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            placeholder="0"
+          />
+        </div>
+        <Button disabled={!winner || save.isPending} onClick={() => save.mutate()}>
+          {t.common.save}
+        </Button>
+        {save.isSuccess && <span className="text-[12.5px] text-confirmed">{t.match.resultSaved}</span>}
+        {save.isError && <span className="text-[12.5px] text-destructive">{error(save.error)}</span>}
+      </div>
+    </Section>
+  );
+}
+
+/** Teams as text for the Messenger group: the phone's share sheet, or the clipboard. */
+function ShareButton({
+  day,
+  teams,
+  byId,
+}: {
+  day: MatchdayView;
+  teams: { teamA: string[]; teamB: string[] };
+  byId: Map<string, RosterPlayer>;
+}) {
+  const { t, name } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const list = (ids: string[]) =>
+    ids
+      .map((id) => name(byId.get(id)?.name))
+      .sort((x, y) => x.localeCompare(y))
+      .join(", ");
+
+  return (
+    <Button
+      variant="outline"
+      onClick={async () => {
+        const text = t.match.shareText(t.date(day.playedOn), list(teams.teamA), list(teams.teamB));
+        const url = window.location.href;
+        try {
+          if (navigator.share) {
+            await navigator.share({ text: `${text}\n\n${url}` });
+            return;
+          }
+        } catch (err) {
+          if ((err as Error).name === "AbortError") return; // closed the share sheet
+        }
+        await navigator.clipboard.writeText(`${text}\n\n${url}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      <Share2Icon /> {copied ? t.match.shared : t.match.share}
+    </Button>
   );
 }

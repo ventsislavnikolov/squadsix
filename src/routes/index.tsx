@@ -1,25 +1,29 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LoaderIcon, SearchIcon, UserPlusIcon } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowRightIcon, LoaderIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { Empty, PageHead, PANE, Section } from "@/components/page";
 import { Pips, Rating } from "@/components/rating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { effectiveRating, SQUAD_SIZE, type Player } from "@/domain/balance";
-import { playersQuery } from "@/lib/queries";
+import { effectiveRating, SQUAD_SIZE } from "@/domain/balance";
+import { useI18n } from "@/lib/i18n";
+import { pickListQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { addGuest, createMatchday } from "@/server/functions";
+import type { RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(playersQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(pickListQuery),
   component: PickSquad,
 });
 
 function PickSquad() {
-  const { data: players } = useSuspenseQuery(playersQuery);
+  const { t, error, isAdmin } = useI18n();
+  const { data } = useSuspenseQuery(pickListQuery);
+  const players = data.players;
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
@@ -37,91 +41,101 @@ function PickSquad() {
     onSuccess: ({ id }) => navigate({ to: "/match/$id", params: { id } }),
   });
 
+  const q = filter.trim().toLocaleLowerCase();
+  const visible = (list: RosterPlayer[]) =>
+    list.filter(
+      (p) => !q || p.name.bg.toLocaleLowerCase().includes(q) || p.name.en.toLowerCase().includes(q),
+    );
   const regulars = players.filter((p) => !p.isGuest);
   const guests = players.filter((p) => p.isGuest);
-  const visible = (list: Player[]) =>
-    list.filter((p) => p.name.toLowerCase().includes(filter.trim().toLowerCase()));
 
-  const chosen = players.filter((p) => picked.has(p.id));
-  const total = chosen.reduce((s, p) => s + effectiveRating(p), 0);
   const ready = picked.size === SQUAD_SIZE;
+  const total = players
+    .filter((p) => picked.has(p.id))
+    .reduce((s, p) => s + effectiveRating({ rating: p.rating ?? null }), 0);
 
   return (
     <div className={cn(PANE, "space-y-10 py-10 pb-36")}>
       <PageHead
-        eyebrow={`Мач · ${new Date().toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long" })}`}
-        title="Кой играе днес?"
-        lead={
-          <>
-            Избери {SQUAD_SIZE} души. Кодът смята всички възможни 6 на 6, а Jev избира трите
-            най-честни варианта. После всеки гласува.
-          </>
-        }
+        eyebrow={t.pick.eyebrow(t.date(new Date().toISOString()))}
+        title={t.pick.title}
+        lead={t.pick.lead}
       />
 
+      {data.todayId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/[0.06] px-4 py-3 text-[13.5px]">
+          <p>{t.pick.todayExists}</p>
+          <Button asChild size="sm">
+            <Link to="/match/$id" params={{ id: data.todayId }}>
+              {t.pick.openToday} <ArrowRightIcon />
+            </Link>
+          </Button>
+        </div>
+      )}
+
       <div className="relative max-w-sm">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/35" />
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg/35" />
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Търси по име"
+          placeholder={t.pick.search}
           className="pl-9"
         />
       </div>
 
-      <Section title="От офиса" note={`${regulars.length} души в списъка.`}>
+      <Section title={t.pick.regulars} note={t.pick.regularsNote(regulars.length)}>
         <Roster players={visible(regulars)} picked={picked} full={ready} onToggle={toggle} />
       </Section>
 
-      <Section
-        title="Гости"
-        note="Някой отвън, когато не се съберем. Няма рейтинг: показва се „?“ и се смята за 2.5."
-      >
+      <Section title={t.pick.guests} note={t.pick.guestsNote}>
         <GuestForm
-          onAdded={(p) => {
-            if (!ready) setPicked((prev) => new Set(prev).add(p.id));
+          onAdded={(id) => {
+            if (!ready) setPicked((prev) => new Set(prev).add(id));
           }}
         />
         <div className="mt-5">
           {guests.length ? (
             <Roster players={visible(guests)} picked={picked} full={ready} onToggle={toggle} />
           ) : (
-            <Empty>Още няма гости.</Empty>
+            <Empty>{t.pick.noGuests}</Empty>
           )}
         </div>
       </Section>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-white/[0.08] bg-background/95 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 border-t border-fg/[0.09] bg-background/95 backdrop-blur">
         <div className={cn(PANE, "flex items-center justify-between gap-4 py-4")}>
           <div className="flex items-baseline gap-6">
             <p className="font-mono text-[1.35rem] tabular-nums">
               <span className={ready ? "text-confirmed" : undefined}>{picked.size}</span>
-              <span className="text-white/35">/{SQUAD_SIZE}</span>
+              <span className="text-fg/35">/{SQUAD_SIZE}</span>
             </p>
-            <p className="hidden font-mono text-[12.5px] tabular-nums text-white/45 sm:block">
-              сума {total.toFixed(1)} · по {(total / 2).toFixed(1)} на отбор
-            </p>
+            {isAdmin && (
+              <p className="hidden font-mono text-[12.5px] tabular-nums text-fg/45 sm:block">
+                {t.pick.sum(total.toFixed(1), (total / 2).toFixed(1))}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {make.isError && (
-              <p className="hidden text-[12.5px] text-destructive md:block">
-                {make.error.message}
-              </p>
+              <p className="hidden text-[12.5px] text-destructive md:block">{error(make.error)}</p>
             )}
             {picked.size > 0 && !make.isPending && (
               <Button variant="ghost" size="sm" onClick={() => setPicked(new Set())}>
-                Изчисти
+                {t.pick.clear}
               </Button>
             )}
-            <Button disabled={!ready || make.isPending} onClick={() => make.mutate()}>
+            <Button
+              disabled={!ready || make.isPending || !!data.todayId}
+              onClick={() => make.mutate()}
+            >
               {make.isPending ? (
                 <>
-                  <LoaderIcon className="animate-spin" /> Jev решава…
+                  <LoaderIcon className="animate-spin" /> {t.pick.thinking}
                 </>
               ) : ready ? (
-                "Направи отбори"
+                t.pick.make
               ) : (
-                `Още ${SQUAD_SIZE - picked.size}`
+                t.pick.more(SQUAD_SIZE - picked.size)
               )}
             </Button>
           </div>
@@ -137,19 +151,20 @@ function Roster({
   full,
   onToggle,
 }: {
-  players: Player[];
+  players: RosterPlayer[];
   picked: Set<string>;
   full: boolean;
   onToggle: (id: string) => void;
 }) {
-  if (!players.length) return <Empty>Никой не отговаря на търсенето.</Empty>;
+  const { t, name } = useI18n();
+  if (!players.length) return <Empty>{t.pick.noMatch}</Empty>;
   return (
     <ul className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
       {players.map((p) => {
         const on = picked.has(p.id);
         const blocked = full && !on;
         return (
-          <li key={p.id} className="border-b border-white/[0.06]">
+          <li key={p.id} className="border-b border-fg/[0.07]">
             <button
               type="button"
               role="checkbox"
@@ -158,22 +173,26 @@ function Roster({
               onClick={() => onToggle(p.id)}
               className={cn(
                 "flex w-full items-center gap-3 py-2.5 text-left transition-colors",
-                blocked ? "cursor-not-allowed opacity-35" : "hover:text-white",
+                blocked ? "cursor-not-allowed opacity-35" : "hover:text-fg",
               )}
             >
               <span
                 className={cn(
                   "grid size-4 shrink-0 place-items-center rounded-[4px] border",
-                  on ? "border-primary bg-primary" : "border-white/25",
+                  on ? "border-primary bg-primary" : "border-fg/25",
                 )}
               >
                 {on && <span className="size-1.5 rounded-[1px] bg-primary-foreground" />}
               </span>
-              <span className={cn("min-w-0 flex-1 truncate text-[14px]", !on && "text-white/75")}>
-                {p.name}
+              <span className={cn("min-w-0 flex-1 truncate text-[14px]", !on && "text-fg/75")}>
+                {name(p.name)}
               </span>
-              <Pips value={p.rating} />
-              <Rating value={p.rating} className="w-9 text-right" />
+              {p.rating !== undefined && (
+                <>
+                  <Pips value={p.rating} />
+                  <Rating value={p.rating} className="w-9 text-right" />
+                </>
+              )}
             </button>
           </li>
         );
@@ -182,13 +201,14 @@ function Roster({
   );
 }
 
-function GuestForm({ onAdded }: { onAdded: (p: Player) => void }) {
+function GuestForm({ onAdded }: { onAdded: (id: string) => void }) {
+  const { t, error } = useI18n();
   const qc = useQueryClient();
   const add = useMutation({
     mutationFn: (name: string) => addGuest({ data: { name } }),
-    onSuccess: async (p) => {
-      await qc.invalidateQueries({ queryKey: ["players"] });
-      onAdded(p);
+    onSuccess: async ({ id }) => {
+      await qc.invalidateQueries({ queryKey: ["pick-list"] });
+      onAdded(id);
     },
   });
 
@@ -210,9 +230,7 @@ function GuestForm({ onAdded }: { onAdded: (p: Player) => void }) {
     >
       <form.Field
         name="name"
-        validators={{
-          onSubmit: z.string().trim().min(2, "Поне 2 букви").max(40, "Твърде дълго"),
-        }}
+        validators={{ onSubmit: z.string().trim().min(2, t.pick.nameTooShort).max(60) }}
       >
         {(field) => (
           <div className="min-w-0 flex-1">
@@ -220,22 +238,23 @@ function GuestForm({ onAdded }: { onAdded: (p: Player) => void }) {
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
-              placeholder="Име на госта, напр. „Иван (гост)“"
+              placeholder={t.pick.guestPlaceholder}
               aria-invalid={field.state.meta.errors.length > 0}
             />
             {field.state.meta.errors[0] && (
               <p className="mt-1.5 text-[12px] text-destructive">
-                {String(field.state.meta.errors[0]?.message ?? field.state.meta.errors[0])}
+                {String(
+                  (field.state.meta.errors[0] as { message?: string })?.message ??
+                    field.state.meta.errors[0],
+                )}
               </p>
             )}
-            {add.isError && (
-              <p className="mt-1.5 text-[12px] text-destructive">{add.error.message}</p>
-            )}
+            {add.isError && <p className="mt-1.5 text-[12px] text-destructive">{error(add.error)}</p>}
           </div>
         )}
       </form.Field>
       <Button type="submit" variant="outline" disabled={add.isPending}>
-        <UserPlusIcon /> Добави гост
+        <UserPlusIcon /> {t.pick.addGuest}
       </Button>
     </form>
   );

@@ -14,10 +14,11 @@ harness in `src/server/jev-harness.ts` splits the work:
 3. **compare** (Jev): pick the best game out of all candidates
 4. **decide** (code): rank on those answers, keep the top three
 
-Every step is stored and shown under "Как реши Jev" on the match page. Without
-`TYPESAFE_API_KEY` the app still works, uses arithmetic only, and says so in a warning.
+Every step is stored and shown under "Как реши Jev" on the match page. Jev is reached
+through TypeSafe (`TYPESAFE_API_KEY`) or OpenRouter (`OPENROUTER_API_KEY`, model
+`~typesafe/jev-latest`). Without either, the app uses arithmetic only and says so.
 
-Ratings are 1.0–5.0 in half steps. Guests have no rating: shown as `?`, counted as 2.5.
+Ratings are admin-only. Rules and vocabulary: see `CONTEXT.md`.
 
 ## Stack
 
@@ -28,13 +29,13 @@ design language from RefAI · deployed on Vercel (Nitro).
 ## Run
 
 ```bash
-cp .env.example .env.local   # fill DATABASE_URL and TYPESAFE_API_KEY
+cp .env.example .env.local   # fill in the values
 pnpm install
 pnpm dev
 ```
 
 Schema: `db/schema.sql`. Placeholder roster: `db/seed.sql`.
 
-## v2
+## Later
 
-Admin screen: add / edit / retire players, change ratings. Sign-in for voting.
+Players' own sign-in; anonymous peer ratings; rating suggestions from results.

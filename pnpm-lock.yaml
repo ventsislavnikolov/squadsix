@@ -17,6 +17,9 @@ importers:
       '@tanstack/ai':
         specifier: ^0.61.0
         version: 0.61.0(zod@4.6.5)
+      '@tanstack/ai-openrouter':
+        specifier: ^0.19.20
+        version: 0.19.20(@tanstack/ai@0.61.0(zod@4.6.5))
       '@tanstack/ai-typesafe':
         specifier: ^0.1.4
         version: 0.1.4(@tanstack/ai@0.61.0(zod@4.6.5))
@@ -270,6 +273,9 @@ packages:
   '@oozcitak/util@10.0.0':
     resolution: {integrity: sha1-9rQEctlsIQCUpVbuXMuOd/G9MK8=}
     engines: {node: '>=20.0'}
+
+  '@openrouter/sdk@0.13.20':
+    resolution: {integrity: sha1-fkJzjgL5nOkeAYlppbUUvZHkIjI=}
 
   '@oxc-parser/binding-android-arm-eabi@0.120.0':
     resolution: {integrity: sha1-xsxGc3p+SdsIhQG74E8eRkJiF3w=}
@@ -1365,6 +1371,11 @@ packages:
 
   '@tanstack/ai-event-client@0.13.0':
     resolution: {integrity: sha512-qGN7saScQHqDd06DE5CNG+wl1O9v6anwsGCCeP4N7zFbZd5k9/2C1u4cdJ2+Qxl2aA8drusLFZMhY/ljhBJqLQ==}
+
+  '@tanstack/ai-openrouter@0.19.20':
+    resolution: {integrity: sha512-zRwIma98ZTBPAxUpLGfq3fm98hyeGeKz8t6ShHCLnrUtoxcHo8+wAZ+LEuwuRosAv29/WR7yjU0U8HEZSdSW7Q==}
+    peerDependencies:
+      '@tanstack/ai': ^0.61.0
 
   '@tanstack/ai-typesafe@0.1.4':
     resolution: {integrity: sha512-EC+s7QW95UPE6Cvxkt04Ec4GBc/Z6JRpaPl9/njnYLGl6q1Sc8nPIrd1QbLGvaUqFy8M6xTD/ZoMd9WDVIuojg==}
@@ -2855,6 +2866,10 @@ snapshots:
 
   '@oozcitak/util@10.0.0': {}
 
+  '@openrouter/sdk@0.13.20':
+    dependencies:
+      zod: 4.6.5
+
   '@oxc-parser/binding-android-arm-eabi@0.120.0':
     optional: true
 
@@ -3870,6 +3885,12 @@ snapshots:
   '@tanstack/ai-event-client@0.13.0':
     dependencies:
       '@tanstack/devtools-event-client': 0.4.4
+
+  '@tanstack/ai-openrouter@0.19.20(@tanstack/ai@0.61.0(zod@4.6.5))':
+    dependencies:
+      '@openrouter/sdk': 0.13.20
+      '@tanstack/ai': 0.61.0(zod@4.6.5)
+      '@tanstack/ai-utils': 0.4.1
 
   '@tanstack/ai-typesafe@0.1.4(@tanstack/ai@0.61.0(zod@4.6.5))':
     dependencies:

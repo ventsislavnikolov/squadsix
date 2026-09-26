@@ -1,9 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-// Who is voting on this device. There is no sign-in in v1, so the name is remembered per
-// browser; voting again from the same name moves the vote rather than adding one.
+// Who is holding this phone: a player id, remembered per browser. There is no sign-in for
+// players in v1 — picking your name is on trust, and the log records every vote.
 
-const KEY = "squad-six.voter";
+const KEY = "s6-me";
 const listeners = new Set<() => void>();
 
 function read(): string {
@@ -19,15 +19,16 @@ function subscribe(cb: () => void) {
   return () => listeners.delete(cb);
 }
 
-export function useVoter(): [string, (name: string) => void] {
-  const voter = useSyncExternalStore(subscribe, read, () => "");
-  const setVoter = useCallback((name: string) => {
+export function useMe(): [string, (playerId: string) => void] {
+  const me = useSyncExternalStore(subscribe, read, () => "");
+  const setMe = useCallback((playerId: string) => {
     try {
-      localStorage.setItem(KEY, name.trim());
+      if (playerId) localStorage.setItem(KEY, playerId);
+      else localStorage.removeItem(KEY);
     } catch {
-      /* private mode — the name just won't be remembered */
+      /* private mode — the choice just won't be remembered */
     }
     listeners.forEach((l) => l());
   }, []);
-  return [voter, setVoter];
+  return [me, setMe];
 }

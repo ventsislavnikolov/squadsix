@@ -6,13 +6,13 @@
 export const TEAM_SIZE = 6;
 export const SQUAD_SIZE = TEAM_SIZE * 2;
 
-/** What an unrated guest counts as. Shown as "?" — this number is only for the maths. */
+/** What an unrated player counts as. Shown as "?" — this number is only for the maths. */
 export const GUEST_RATING = 2.5;
 
+/** What the balancer needs to know about a person — nothing about their name. */
 export type Player = {
   id: string;
-  name: string;
-  /** null = guest with no rating. */
+  /** null = not rated (a new guest, or a regular the admin has not scored yet). */
   rating: number | null;
   isGuest: boolean;
 };
@@ -142,3 +142,6 @@ function round1(n: number): number {
 export function formatRating(rating: number | null): string {
   return rating === null ? "?" : rating.toFixed(1);
 }
+
+/** Every rating the admin can pick: 1.0, 1.5 … 5.0. */
+export const RATING_STEPS = Array.from({ length: 9 }, (_, i) => 1 + i * 0.5);

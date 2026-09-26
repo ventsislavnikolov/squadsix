@@ -10,7 +10,6 @@ import {
 
 const squad: Player[] = [5, 4.5, 4, 4, 3.5, 3, 3, 2.5, 2, 2, 1.5, null].map((rating, i) => ({
   id: `p${i}`,
-  name: `P${i}`,
   rating,
   isGuest: rating === null,
 }));

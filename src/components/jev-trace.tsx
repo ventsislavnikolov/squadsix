@@ -1,54 +1,66 @@
-import type { HarnessStep } from "@/server/jev-harness";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-
-const KIND: Record<HarnessStep["kind"], { tag: string; who: string }> = {
-  measure: { tag: "measure", who: "код" },
-  judge: { tag: "judge", who: "Jev" },
-  compare: { tag: "compare", who: "Jev" },
-  decide: { tag: "decide", who: "код" },
-  error: { tag: "error", who: "Jev" },
-};
+import type { HarnessStep, Json } from "@/server/jev-harness";
 
 /**
  * The harness run, step by step. Who did each step — our code or the model — is the
  * first thing on every line, because that is the point of looking.
  */
 export function JevTrace({ steps }: { steps: HarnessStep[] }) {
-  const judges = steps.filter((s) => s.kind === "judge");
-  const rest = steps.filter((s) => s.kind !== "judge");
-  const ordered = [
-    ...rest.filter((s) => s.kind === "measure"),
-    ...judges,
-    ...rest.filter((s) => s.kind !== "measure"),
-  ];
+  const { t } = useI18n();
+  // Judges run in parallel and finish in any order; show them in candidate order.
+  const order = { measure: 0, judge: 1, compare: 2, decide: 3, error: 4 } as const;
+  const ordered = [...steps].sort(
+    (a, b) =>
+      order[a.kind] - order[b.kind] ||
+      (a.kind === "judge" && b.kind === "judge"
+        ? Number(a.candidate.slice(1)) - Number(b.candidate.slice(1))
+        : 0),
+  );
+
+  const label = (s: HarnessStep) => {
+    switch (s.kind) {
+      case "measure":
+        return t.trace.measure(s.combinations, s.candidates);
+      case "judge":
+        return t.trace.judge(s.candidate);
+      case "compare":
+        return t.trace.compare;
+      case "decide":
+        return s.mode === "jev" ? t.trace.decideJev : t.trace.decideFallback;
+      case "error":
+        return t.trace.error;
+    }
+  };
+  const byJev = (s: HarnessStep) => s.kind === "judge" || s.kind === "compare" || s.kind === "error";
 
   return (
-    <ol className="border-t border-white/[0.06]">
+    <ol className="border-t border-fg/[0.07]">
       {ordered.map((step, i) => (
-        <li key={i} className="border-b border-white/[0.06]">
+        <li key={i} className="border-b border-fg/[0.07]">
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-baseline gap-4 py-3 text-[13.5px] [&::-webkit-details-marker]:hidden">
-              <span className="w-8 shrink-0 font-mono text-[11px] tabular-nums text-white/30">
+            <summary className="flex cursor-pointer list-none items-baseline gap-3 py-3 text-[13.5px] sm:gap-4 [&::-webkit-details-marker]:hidden">
+              <span className="w-6 shrink-0 font-mono text-[11px] tabular-nums text-fg/30">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span
                 className={cn(
-                  "w-14 shrink-0 font-mono text-[11px] uppercase tracking-[0.14em]",
-                  KIND[step.kind].who === "Jev" ? "text-primary" : "text-white/45",
+                  "w-10 shrink-0 font-mono text-[11px] uppercase tracking-[0.14em]",
+                  byJev(step) ? "text-primary" : "text-fg/45",
                   step.kind === "error" && "text-destructive",
                 )}
               >
-                {KIND[step.kind].who}
+                {byJev(step) ? t.trace.who.jev : t.trace.who.code}
               </span>
-              <span className="min-w-0 flex-1 text-white/80">{step.label}</span>
+              <span className="min-w-0 flex-1 text-fg/80">{label(step)}</span>
               {"ms" in step && (
-                <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-white/40">
+                <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-fg/40">
                   {step.ms} ms
                 </span>
               )}
-              <span className="shrink-0 text-white/30 transition-transform group-open:rotate-90">›</span>
+              <span className="shrink-0 text-fg/30 transition-transform group-open:rotate-90">›</span>
             </summary>
-            <div className="pb-4 pl-[6.5rem]">
+            <div className="pb-4 pl-9 sm:pl-[5.5rem]">
               <StepDetail step={step} />
             </div>
           </details>
@@ -59,16 +71,15 @@ export function JevTrace({ steps }: { steps: HarnessStep[] }) {
 }
 
 function StepDetail({ step }: { step: HarnessStep }) {
+  const { t } = useI18n();
   switch (step.kind) {
     case "measure":
-      return (
-        <p className="text-[12.5px] text-white/50">
-          {step.candidates} кандидата подадени към Jev. Всички имат 6 на 6 и са проверени от кода.
-        </p>
-      );
+      return <p className="text-[12.5px] text-fg/50">{t.trace.measureDetail(step.candidates)}</p>;
     case "decide":
       return (
-        <p className="font-mono text-[12px] text-white/55">избрани: {step.picked.join(", ")}</p>
+        <p className="font-mono text-[12px] text-fg/55">
+          {t.trace.picked}: {step.picked.join(", ")}
+        </p>
       );
     case "error":
       return <p className="font-mono text-[12px] text-destructive">{step.message}</p>;
@@ -76,43 +87,50 @@ function StepDetail({ step }: { step: HarnessStep }) {
     case "compare":
       return (
         <div className="space-y-4">
-          <p className="font-mono text-[11.5px] text-white/40">
+          <p className="font-mono text-[11.5px] text-fg/40">
             {step.model}
-            {step.tokens !== null && ` · ${step.tokens} токена`}
+            {step.tokens !== null && ` · ${step.tokens} ${t.trace.tokens}`}
           </p>
           <Answers answers={step.answers} />
-          <details>
-            <summary className="cursor-pointer text-[12px] text-white/45 hover:text-white/70">
-              Какво видя Jev (state + въпроси)
-            </summary>
-            <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-white/[0.06] bg-black/30 p-3 font-mono text-[11px] leading-[1.6] text-white/60">
-              {JSON.stringify({ state: step.state, questions: step.questions }, null, 2)}
-            </pre>
-          </details>
+          {step.state === null ? (
+            <p className="text-[12px] text-fg/40">{t.trace.hiddenState}</p>
+          ) : (
+            <details>
+              <summary className="cursor-pointer text-[12px] text-fg/45 hover:text-fg/70">
+                {t.trace.whatJevSaw}
+              </summary>
+              <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-fg/[0.07] bg-fg/[0.04] p-3 font-mono text-[11px] leading-[1.6] text-fg/65">
+                {JSON.stringify({ state: step.state, questions: step.questions }, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       );
   }
 }
 
 /** Probabilities as bars — the whole point of a calibrated model is the distribution. */
-function Answers({ answers }: { answers: Record<string, unknown> }) {
+function Answers({ answers }: { answers: { [key: string]: Json } }) {
+  const { t } = useI18n();
   return (
     <div className="grid gap-5 sm:grid-cols-2">
       {Object.entries(answers).map(([key, raw]) => {
-        const a = raw as {
+        const a = raw as unknown as {
           type: string;
           value: string | boolean;
           probability: number;
           probabilities?: Record<string, number>;
         };
         const dist =
-          a.probabilities ??
-          (a.type === "boolean" ? { да: a.probability, не: 1 - a.probability } : {});
+          a.type === "boolean"
+            ? { [t.trace.yes]: a.probability, [t.trace.no]: 1 - a.probability }
+            : (a.probabilities ?? {});
+        const value = a.value === true ? t.trace.yes : a.value === false ? t.trace.no : a.value;
         return (
           <div key={key}>
             <p className="eyebrow">{key}</p>
             <p className="mt-1 text-[13px]">
-              → <span className="font-medium">{String(a.value === true ? "да" : a.value === false ? "не" : a.value)}</span>
+              → <span className="font-medium">{String(value)}</span>
             </p>
             <ul className="mt-2 space-y-1">
               {Object.entries(dist)
@@ -120,14 +138,14 @@ function Answers({ answers }: { answers: Record<string, unknown> }) {
                 .slice(0, 6)
                 .map(([label, p]) => (
                   <li key={label} className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
-                    <span className="w-20 shrink-0 truncate text-white/50">{label}</span>
-                    <span className="h-1.5 flex-1 rounded-full bg-white/[0.06]">
+                    <span className="w-20 shrink-0 truncate text-fg/50">{label}</span>
+                    <span className="h-1.5 flex-1 rounded-full bg-fg/[0.07]">
                       <span
                         className="block h-full rounded-full bg-primary/70"
                         style={{ width: `${Math.round(p * 100)}%` }}
                       />
                     </span>
-                    <span className="w-9 text-right text-white/60">{Math.round(p * 100)}%</span>
+                    <span className="w-9 text-right text-fg/60">{Math.round(p * 100)}%</span>
                   </li>
                 ))}
             </ul>

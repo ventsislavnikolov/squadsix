@@ -1,13 +1,14 @@
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, TrophyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { effectiveRating, type Player } from "@/domain/balance";
+import { effectiveRating } from "@/domain/balance";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import type { Proposal } from "@/server/repo";
+import type { ProposalView, RosterPlayer } from "@/server/repo";
 import { Rating } from "./rating";
 
 /**
- * One proposed game. Totals come from our arithmetic (see domain/balance.ts), never from
- * the model's own claim; the rationale is the model's, and is labelled as such.
+ * One proposed game. The gap comes from our arithmetic, never the model's claim; the
+ * verdict is Jev's and is labelled as such. Totals and ratings appear only for the admin.
  */
 export function ProposalCard({
   proposal,
@@ -15,69 +16,101 @@ export function ProposalCard({
   voters,
   leading,
   mine,
-  onVote,
+  chosen,
+  canVote,
   voting,
+  onVote,
 }: {
-  proposal: Proposal;
-  byId: Map<string, Player>;
+  proposal: ProposalView;
+  byId: Map<string, RosterPlayer>;
   voters: string[];
   leading: boolean;
   mine: boolean;
-  onVote: () => void;
+  /** Locked on this one. */
+  chosen: boolean;
+  /** Voting is open and the viewer is one of the twelve. */
+  canVote: boolean;
   voting: boolean;
+  onVote: () => void;
 }) {
-  const gap = Math.abs(proposal.totalA - proposal.totalB);
+  const { t } = useI18n();
+  const gap = proposal.gap;
+  const v = proposal.verdict;
+  const pct = (n: number) => Math.round(n * 100);
+
   return (
     <article
       className={cn(
-        "flex flex-col rounded-xl border bg-white/[0.02] transition-colors",
-        mine ? "border-primary/60" : "border-white/[0.08]",
+        "flex flex-col rounded-xl border bg-card/60 transition-colors",
+        chosen ? "border-confirmed/60" : mine ? "border-primary/60" : "border-fg/[0.09]",
       )}
     >
-      <header className="flex items-baseline justify-between border-b border-white/[0.06] px-5 py-4">
-        <p className="eyebrow">Вариант {proposal.position}</p>
-        <p className="font-mono text-[12px] tabular-nums text-white/50">
-          разлика{" "}
-          <span className={cn(gap <= 0.5 ? "text-confirmed" : gap <= 1.5 ? "text-warning" : "text-destructive")}>
+      <header className="flex items-baseline justify-between border-b border-fg/[0.07] px-5 py-4">
+        <p className="eyebrow flex items-center gap-2">
+          {t.match.option(proposal.position)}
+          {chosen && (
+            <span className="inline-flex items-center gap-1 text-confirmed">
+              <TrophyIcon className="size-3" /> {t.match.winnerTag}
+            </span>
+          )}
+        </p>
+        <p className="font-mono text-[12px] tabular-nums text-fg/50">
+          {t.match.difference}{" "}
+          <span
+            className={cn(
+              gap <= 0.5 ? "text-confirmed" : gap <= 1.5 ? "text-warning" : "text-destructive",
+            )}
+          >
             {gap.toFixed(1)}
           </span>
         </p>
       </header>
 
-      <div className="grid grid-cols-2 divide-x divide-white/[0.06]">
-        <Side label="Отбор А" tone="a" total={proposal.totalA} ids={proposal.teamA} byId={byId} />
-        <Side label="Отбор Б" tone="b" total={proposal.totalB} ids={proposal.teamB} byId={byId} />
+      <div className="grid grid-cols-2 divide-x divide-fg/[0.07]">
+        <Side label={t.common.teamA} tone="a" total={proposal.totals?.a} ids={proposal.teamA} byId={byId} />
+        <Side label={t.common.teamB} tone="b" total={proposal.totals?.b} ids={proposal.teamB} byId={byId} />
       </div>
 
-      <div className="border-t border-white/[0.06] px-5 py-4">
-        <p className="eyebrow">
-          {proposal.verdict ? `Защо — според Jev · ${proposal.verdict.candidate}` : "Защо — без Jev"}
+      <div className="border-t border-fg/[0.07] px-5 py-4">
+        <p className="eyebrow">{v ? t.match.whyJev(v.candidate) : t.match.whyNoJev}</p>
+        {v && <Meter fairness={v.fairness} low={t.match.scaleLow} high={t.match.scaleHigh} />}
+        <p className="mt-3 text-[13px] leading-[1.65] text-fg/60">
+          {v
+            ? t.match.rationale(
+                t.match.fairness[v.fairnessLabel] ?? v.fairnessLabel,
+                pct(v.fairnessConfidence),
+                pct(v.stacked),
+                pct(v.preferred),
+              )
+            : t.match.rationaleFallback(gap.toFixed(1))}
         </p>
-        {proposal.verdict && <Meter fairness={proposal.verdict.fairness} />}
-        <p className="mt-2 text-[13px] leading-[1.65] text-white/60">{proposal.rationale}</p>
       </div>
 
-      <footer className="mt-auto flex items-center justify-between gap-3 border-t border-white/[0.06] px-5 py-4">
+      <footer className="mt-auto flex items-center justify-between gap-3 border-t border-fg/[0.07] px-5 py-4">
         <div className="min-w-0">
-          <p className="font-mono text-[12px] tabular-nums text-white/70">
-            {voters.length} {voters.length === 1 ? "глас" : "гласа"}
-            {leading && voters.length > 0 && <span className="ml-2 text-confirmed">водещ</span>}
+          <p className="font-mono text-[12px] tabular-nums text-fg/70">
+            {t.match.votes(voters.length)}
+            {leading && voters.length > 0 && !chosen && (
+              <span className="ml-2 text-confirmed">{t.match.leading}</span>
+            )}
           </p>
           {voters.length > 0 && (
-            <p className="mt-1 truncate text-[12px] text-white/40" title={voters.join(", ")}>
+            <p className="mt-1 truncate text-[12px] text-fg/45" title={voters.join(", ")}>
               {voters.join(", ")}
             </p>
           )}
         </div>
-        <Button size="sm" variant={mine ? "default" : "outline"} onClick={onVote} disabled={voting}>
-          {mine ? (
-            <>
-              <CheckIcon /> Твоят глас
-            </>
-          ) : (
-            "Гласувай"
-          )}
-        </Button>
+        {canVote && (
+          <Button size="sm" variant={mine ? "default" : "outline"} onClick={onVote} disabled={voting}>
+            {mine ? (
+              <>
+                <CheckIcon /> {t.match.yourVote}
+              </>
+            ) : (
+              t.match.vote
+            )}
+          </Button>
+        )}
       </footer>
     </article>
   );
@@ -92,27 +125,36 @@ function Side({
 }: {
   label: string;
   tone: "a" | "b";
-  total: number;
+  total: number | undefined;
   ids: string[];
-  byId: Map<string, Player>;
+  byId: Map<string, RosterPlayer>;
 }) {
+  const { name, t } = useI18n();
   const players = ids
     .map((id) => byId.get(id))
-    .filter((p): p is Player => !!p)
-    .sort((x, y) => effectiveRating(y) - effectiveRating(x));
+    .filter((p): p is RosterPlayer => !!p)
+    // Admin sees strongest first; everyone else alphabetical, so order leaks nothing.
+    .sort((x, y) =>
+      x.rating !== undefined && y.rating !== undefined
+        ? effectiveRating({ rating: y.rating }) - effectiveRating({ rating: x.rating })
+        : name(x.name).localeCompare(name(y.name)),
+    );
   return (
     <div className="px-5 py-4">
       <div className="flex items-baseline justify-between">
         <p className={cn("text-[12.5px] font-medium", tone === "a" ? "text-team-a" : "text-team-b")}>
           {label}
         </p>
-        <p className="font-mono text-[15px] tabular-nums">{total.toFixed(1)}</p>
+        {total !== undefined && <p className="font-mono text-[14px] tabular-nums">{total.toFixed(1)}</p>}
       </div>
       <ul className="mt-3 space-y-1.5">
         {players.map((p) => (
           <li key={p.id} className="flex items-baseline justify-between gap-2 text-[13px]">
-            <span className="truncate">{p.name}</span>
-            <Rating value={p.rating} />
+            <span className="truncate">
+              {name(p.name)}
+              {p.isGuest && <span className="ml-1.5 text-[11px] text-fg/40">{t.common.guest}</span>}
+            </span>
+            {p.rating !== undefined && <Rating value={p.rating} />}
           </li>
         ))}
       </ul>
@@ -120,19 +162,19 @@ function Side({
   );
 }
 
-/** Jev's fairness score as a scale from one-sided to dead even. */
-function Meter({ fairness }: { fairness: number }) {
+/** Jev's fairness score on a scale from one-sided to dead even. */
+function Meter({ fairness, low, high }: { fairness: number; low: string; high: string }) {
   return (
     <div className="mt-3">
-      <div className="relative h-1.5 rounded-full bg-white/[0.06]">
+      <div className="relative h-1.5 rounded-full bg-fg/[0.07]">
         <span
           className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
           style={{ left: `${Math.round(fairness * 100)}%` }}
         />
       </div>
-      <div className="mt-1.5 flex justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-white/30">
-        <span>едностранен</span>
-        <span>напълно равен</span>
+      <div className="mt-1.5 flex justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-fg/35">
+        <span>{low}</span>
+        <span>{high}</span>
       </div>
     </div>
   );

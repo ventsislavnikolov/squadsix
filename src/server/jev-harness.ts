@@ -10,9 +10,11 @@
 //   3. compare   Jev picks the single best game out of all candidates
 //   4. decide    code combines the answers into a ranking and keeps the top three
 //
-// Every call is recorded as a step so the UI can show exactly how the teams were chosen.
+// Every call is recorded as a step so the match page can show how the teams were chosen.
+// Steps carry data, not sentences: the page words them in the reader's language.
 
-import { boolean, choice, decide, score } from "@tanstack/ai";
+import { boolean, choice, decide, score, type AnyEvaluateAdapter } from "@tanstack/ai";
+import { createOpenRouterDecider } from "@tanstack/ai-openrouter";
 import { createTypesafeDecider } from "@tanstack/ai-typesafe";
 import {
   bestSplits,
@@ -24,17 +26,20 @@ import {
 } from "@/domain/balance";
 
 export const JEV_MODEL = "jev-latest";
+/** The same model, hosted by OpenRouter — no TypeSafe account needed. */
+export const JEV_OPENROUTER_MODEL = "~typesafe/jev-latest";
 const CANDIDATES = 10;
 const PICK = 3;
 
-const FAIRNESS_LEVELS = ["one-sided", "uneven", "close", "dead even"] as const;
+export const FAIRNESS_LEVELS = ["one-sided", "uneven", "close", "dead even"] as const;
+export type FairnessLevel = (typeof FAIRNESS_LEVELS)[number];
 
 export type Verdict = {
   /** Which candidate this was in the trace (c1..c10). */
   candidate: string;
-  /** Jev's fairness score, 0..1 (raw fraction across FAIRNESS_LEVELS). */
+  /** Jev's fairness score, 0..1 across FAIRNESS_LEVELS. */
   fairness: number;
-  fairnessLabel: string;
+  fairnessLabel: FairnessLevel;
   fairnessConfidence: number;
   /** P(a neutral player would call one side stacked). */
   stacked: number;
@@ -47,30 +52,38 @@ export type Verdict = {
 /** Plain JSON — trace steps go to Postgres and over the wire as-is. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
+type JevCall = {
+  /** What Jev was shown. Contains ratings, so only the admin ever receives it. */
+  state: Json | null;
+  questions: { [key: string]: Json };
+  answers: { [key: string]: Json };
+  model: string;
+  tokens: number | null;
+  ms: number;
+};
+
 export type HarnessStep =
-  | { kind: "measure"; label: string; candidates: number; ms: number }
-  | {
-      kind: "judge" | "compare";
-      label: string;
-      state: Json;
-      questions: { [key: string]: Json };
-      answers: { [key: string]: Json };
-      model: string;
-      tokens: number | null;
-      ms: number;
-    }
-  | { kind: "decide"; label: string; picked: string[]; ms: number }
-  | { kind: "error"; label: string; message: string };
+  | { kind: "measure"; combinations: number; candidates: number; ms: number }
+  | ({ kind: "judge"; candidate: string } & JevCall)
+  | ({ kind: "compare" } & JevCall)
+  | { kind: "decide"; mode: "jev" | "fallback"; picked: string[]; ms: number }
+  | { kind: "error"; message: string };
 
 export type HarnessResult = {
   source: "jev" | "fallback";
   model: string;
   error: string | null;
   trace: HarnessStep[];
-  picks: { split: Split; score: SplitScore; verdict: Verdict | null; rationale: string }[];
+  picks: { split: Split; score: SplitScore; verdict: Verdict | null }[];
 };
 
-export async function balanceWithJev(squad: Player[]): Promise<HarnessResult> {
+/**
+ * @param names what to call each player in Jev's state — English, its strongest language.
+ */
+export async function balanceWithJev(
+  squad: Player[],
+  names: Map<string, string>,
+): Promise<HarnessResult> {
   const byId = new Map(squad.map((p) => [p.id, p]));
   const trace: HarnessStep[] = [];
 
@@ -82,41 +95,39 @@ export async function balanceWithJev(squad: Player[]): Promise<HarnessResult> {
   }));
   trace.push({
     kind: "measure",
-    label: `Кодът пробва всички 462 разпределения и остави ${candidates.length} почти равни и различни помежду си`,
+    combinations: 462,
     candidates: candidates.length,
     ms: ms(t),
   });
 
-  const apiKey = process.env.TYPESAFE_API_KEY;
-  if (!apiKey) {
-    return fallback(candidates, trace, "TYPESAFE_API_KEY не е зададен — Jev не е извикан.");
-  }
-  const adapter = createTypesafeDecider(JEV_MODEL, apiKey, { timeout: 15_000 });
+  const adapter = jevAdapter();
+  if (!adapter) return fallback(candidates, trace, "missing-key");
+  const describe = (c: (typeof candidates)[number]) => describeGame(c.split, c.score, byId, names);
 
   try {
     // 2. judge — one small request per candidate, run in parallel.
     const judged = await Promise.all(
       candidates.map(async (c) => {
-        const state = describeGame(c.split, c.score, byId);
+        const state = describe(c);
         const questions = {
           fairness: score({
             instructions:
               "This is a casual 6-a-side office football game. Ratings run 1 (weak) to 5 (strong); " +
-              "'?' is an unrated guest, counted as 2.5. Team totals are already computed and correct. " +
+              "'?' is an unrated player, counted as 2.5. Team totals are already computed and correct. " +
               "How evenly matched will this game be?",
             levels: FAIRNESS_LEVELS,
           }),
           stacked: boolean({
             instructions:
               "Would a neutral player look at these two line-ups and say one team is stacked — " +
-              "for example the best players together, or all the unknown guests on one side?",
+              "for example the best players together, or all the unrated players on one side?",
           }),
         };
         const s = performance.now();
         const r = await decide({ adapter, state, questions });
         trace.push({
           kind: "judge",
-          label: `Jev оцени вариант ${c.key}`,
+          candidate: c.key,
           state: json(state),
           questions: json(questions),
           answers: json({ fairness: r.fairness, stacked: r.stacked }),
@@ -129,29 +140,20 @@ export async function balanceWithJev(squad: Player[]): Promise<HarnessResult> {
     );
 
     // 3. compare — Jev sees every candidate and picks one.
-    const state = {
-      games: Object.fromEntries(
-        candidates.map((c) => [c.key, describeGame(c.split, c.score, byId)]),
-      ),
-    };
-    const options = Object.fromEntries(candidates.map((c) => [c.key, null])) as Record<
-      string,
-      null
-    >;
+    const state = { games: Object.fromEntries(candidates.map((c) => [c.key, describe(c)])) };
     const questions = {
       best: choice({
         instructions:
           "Several possible line-ups for tonight's 6-a-side office game. Totals are precomputed and correct. " +
           "Which game will be the most fun because it is the closest contest?",
-        options,
+        options: Object.fromEntries(candidates.map((c) => [c.key, null])) as Record<string, null>,
       }),
     };
     t = performance.now();
     const cmp = await decide({ adapter, state, questions });
     trace.push({
       kind: "compare",
-      label: "Jev сравни всички варианти и избра най-добрия",
-      state: { games: `${candidates.length} варианта` },
+      state: json(state),
       questions: json(questions),
       answers: json({ best: cmp.best }),
       model: cmp.meta.model,
@@ -178,30 +180,42 @@ export async function balanceWithJev(squad: Player[]): Promise<HarnessResult> {
       .sort((a, b) => b.verdict.rank - a.verdict.rank)
       .slice(0, PICK);
 
-    trace.push({
-      kind: "decide",
-      label: "Кодът подреди по: оценка − ½·„натъкмен“ + ½·„избран“ и взе първите 3",
-      picked: ranked.map((r) => r.key),
-      ms: ms(t),
-    });
+    trace.push({ kind: "decide", mode: "jev", picked: ranked.map((r) => r.key), ms: ms(t) });
 
     return {
       source: "jev",
       model: judged[0]?.model ?? JEV_MODEL,
       error: null,
       trace,
-      picks: ranked.map((r) => ({
-        split: r.split,
-        score: r.score,
-        verdict: r.verdict,
-        rationale: explain(r.verdict),
-      })),
+      picks: ranked.map((r) => ({ split: r.split, score: r.score, verdict: r.verdict })),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    trace.push({ kind: "error", label: "Jev върна грешка", message });
-    return fallback(candidates, trace, `Jev не отговори: ${message}`);
+    trace.push({ kind: "error", message });
+    return fallback(candidates, trace, message);
   }
+}
+
+/**
+ * Where Jev is reached: TypeSafe directly if we have their key, otherwise through
+ * OpenRouter, which hosts the same model. Both speak `decide()`, so nothing else changes.
+ */
+function jevAdapter(): AnyEvaluateAdapter | null {
+  const typesafe = process.env.TYPESAFE_API_KEY;
+  if (typesafe) return createTypesafeDecider(JEV_MODEL, typesafe, { timeout: 15_000 });
+  const openrouter = process.env.OPENROUTER_API_KEY;
+  if (openrouter) {
+    return createOpenRouterDecider(JEV_OPENROUTER_MODEL, openrouter, {
+      xTitle: "Squad Six",
+      httpReferer: "https://squad-six-fourth.vercel.app",
+    });
+  }
+  return null;
+}
+
+/** Remove what Jev saw (it includes ratings) before a trace leaves the server. */
+export function redactTrace(trace: HarnessStep[]): HarnessStep[] {
+  return trace.map((s) => (s.kind === "judge" || s.kind === "compare" ? { ...s, state: null } : s));
 }
 
 function fallback(
@@ -210,57 +224,36 @@ function fallback(
   error: string,
 ): HarnessResult {
   const picks = candidates.slice(0, PICK);
-  trace.push({
-    kind: "decide",
-    label: "Без Jev: взимат се трите с най-малка разлика",
-    picked: picks.map((c) => c.key),
-    ms: 0,
-  });
+  trace.push({ kind: "decide", mode: "fallback", picked: picks.map((c) => c.key), ms: 0 });
   return {
     source: "fallback",
     model: "arithmetic",
     error,
     trace,
-    picks: picks.map((c) => ({
-      split: c.split,
-      score: c.score,
-      verdict: null,
-      rationale: `Най-малка разлика в сумата на рейтингите (${c.score.gap.toFixed(1)}). Jev не е питан.`,
-    })),
+    picks: picks.map((c) => ({ split: c.split, score: c.score, verdict: null })),
   };
 }
 
 /** What Jev sees for one game: names, ratings as text, and totals we computed. */
-function describeGame(split: Split, s: SplitScore, byId: Map<string, Player>) {
+function describeGame(
+  split: Split,
+  s: SplitScore,
+  byId: Map<string, Player>,
+  names: Map<string, string>,
+) {
   const side = (ids: string[]) =>
     ids
       .map((id) => byId.get(id)!)
       .sort((a, b) => effectiveRating(b) - effectiveRating(a))
-      .map((p) => `${p.name} (${p.rating === null ? "?" : p.rating.toFixed(1)})`);
+      .map((p) => `${names.get(p.id) ?? "?"} (${p.rating === null ? "?" : p.rating.toFixed(1)})`);
   return {
     teamA: side(split.teamA),
     teamB: side(split.teamB),
     totalA: s.totalA,
     totalB: s.totalB,
     difference: s.gap,
-    unratedGuests: { teamA: s.guestsA, teamB: s.guestsB },
+    unratedPlayers: { teamA: s.guestsA, teamB: s.guestsB },
   };
-}
-
-const LABEL_BG: Record<string, string> = {
-  "one-sided": "едностранен",
-  uneven: "неравен",
-  close: "оспорван",
-  "dead even": "напълно равен",
-};
-
-function explain(v: Verdict): string {
-  const pct = (n: number) => `${Math.round(n * 100)}%`;
-  return (
-    `Оценка „${LABEL_BG[v.fairnessLabel] ?? v.fairnessLabel}“ (${pct(v.fairnessConfidence)} сигурност). ` +
-    `Шанс да изглежда натъкмен: ${pct(v.stacked)}. ` +
-    `Вероятност да е най-добрият мач: ${pct(v.preferred)}.`
-  );
 }
 
 function json<T>(value: T): { [key: string]: Json } {
