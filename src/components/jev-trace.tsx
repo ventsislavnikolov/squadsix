@@ -120,12 +120,19 @@ function Answers({ answers }: { answers: { [key: string]: Json } }) {
           value: string | boolean;
           probability: number;
           probabilities?: Record<string, number>;
+          /** Score answers key probabilities by level index; the legend names them. */
+          legend?: Record<string, string>;
+        };
+        const label = (key: string) => {
+          const level = a.legend?.[key] ?? key;
+          return t.match.fairness[level] ?? level;
         };
         const dist =
           a.type === "boolean"
             ? { [t.trace.yes]: a.probability, [t.trace.no]: 1 - a.probability }
-            : (a.probabilities ?? {});
-        const value = a.value === true ? t.trace.yes : a.value === false ? t.trace.no : a.value;
+            : Object.fromEntries(Object.entries(a.probabilities ?? {}).map(([k, p]) => [label(k), p]));
+        const value =
+          a.value === true ? t.trace.yes : a.value === false ? t.trace.no : label(String(a.value));
         return (
           <div key={key}>
             <p className="eyebrow">{key}</p>

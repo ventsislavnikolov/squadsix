@@ -169,7 +169,7 @@ function Meter({ fairness, low, high }: { fairness: number; low: string; high: s
       <div className="relative h-1.5 rounded-full bg-fg/[0.07]">
         <span
           className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
-          style={{ left: `${Math.round(fairness * 100)}%` }}
+          style={{ left: `${Math.round(Math.min(1, Math.max(0, fairness)) * 100)}%` }}
         />
       </div>
       <div className="mt-1.5 flex justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-fg/35">

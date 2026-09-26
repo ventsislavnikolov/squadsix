@@ -166,14 +166,17 @@ export async function balanceWithJev(
     const ranked = judged
       .map((j) => {
         const preferred = cmp.best.probabilities[j.key] ?? 0;
+        // Jev's score runs 0..(levels − 1) — 2.99 means "almost dead even" on four
+        // levels. Bring it to 0..1 so it weighs the same as the probabilities beside it.
+        const fairness = clamp01(j.fairness.score / (FAIRNESS_LEVELS.length - 1));
         const verdict: Verdict = {
           candidate: j.key,
-          fairness: j.fairness.score,
+          fairness,
           fairnessLabel: j.fairness.value,
           fairnessConfidence: j.fairness.confidence,
           stacked: j.stacked.probability,
           preferred,
-          rank: j.fairness.score - 0.5 * j.stacked.probability + 0.5 * preferred,
+          rank: fairness - 0.5 * j.stacked.probability + 0.5 * preferred,
         };
         return { ...j, verdict };
       })
@@ -258,6 +261,10 @@ function describeGame(
 
 function json<T>(value: T): { [key: string]: Json } {
   return JSON.parse(JSON.stringify(value)) as { [key: string]: Json };
+}
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n));
 }
 
 function ms(start: number) {
