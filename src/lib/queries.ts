@@ -7,6 +7,7 @@ import {
   getLog,
   getMatchday,
   getMatchdays,
+  getOpenMatch,
   getPickList,
   getSession,
 } from "@/server/functions";
@@ -16,6 +17,12 @@ export const sessionQuery = queryOptions({
   queryKey: ["session"],
   queryFn: () => getSession(),
   staleTime: Infinity,
+});
+
+/** Drives the nav ("New game" vs "Game") and whether "/" shows the picker at all. */
+export const openMatchQuery = queryOptions({
+  queryKey: ["open-match"],
+  queryFn: () => getOpenMatch(),
 });
 
 export const pickListQuery = queryOptions({

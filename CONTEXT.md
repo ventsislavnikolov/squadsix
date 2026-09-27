@@ -21,6 +21,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 2. Ratings are given by the admin alone and are visible only to the admin. Other people see only the gap between teams and Jev's verdict, never the team totals.
 3. Admin credentials live in Vercel env: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (scrypt) and `SESSION_SECRET`. There's no player login; a voter picks their name from the 12, on trust.
 4. Anyone can create a game, vote (only the 12 playing) and lock. These guards apply:
+   - no new game while any game is still open (unlocked), whatever day it was made; "/" redirects to it
    - one game a day
    - new options only while there are 0 votes
    - Jev runs at most 3 times per game
@@ -28,7 +29,9 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 5. There's an activity log of every action, refusals included, with IP and user agent. It's kept for 90 days and is admin-only.
 6. After the lock, the teams can be shared to Messenger (share sheet or clipboard).
 7. There are no goalkeepers or positions. It's always 12 players; odd numbers and other sizes are out of scope.
-8. Themes are light and dark, following the system by default. This departs from RefAI's single dark theme on purpose: the app is read on phones outdoors.
+8. Jev's trace ("How Jev decided") and which model decided are shown only to the admin.
+   Confirmations use an in-app dialog, never the browser's confirm().
+9. Themes are light and dark, following the system by default. This departs from RefAI's single dark theme on purpose: the app is read on phones outdoors.
 
 ## Jev
 

@@ -216,11 +216,6 @@ function jevAdapter(): AnyEvaluateAdapter | null {
   return null;
 }
 
-/** Remove what Jev saw (it includes ratings) before a trace leaves the server. */
-export function redactTrace(trace: HarnessStep[]): HarnessStep[] {
-  return trace.map((s) => (s.kind === "judge" || s.kind === "compare" ? { ...s, state: null } : s));
-}
-
 function fallback(
   candidates: { key: string; split: Split; score: SplitScore }[],
   trace: HarnessStep[],

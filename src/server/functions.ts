@@ -69,9 +69,13 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
 
 /* ----------------------------------------------------------------------- roster -- */
 
-export const getPickList = createServerFn({ method: "GET" }).handler(async () => ({
-  players: await repo.pickList(isAdmin()),
-  todayId: await repo.todayMatchdayId(),
+export const getPickList = createServerFn({ method: "GET" }).handler(() =>
+  repo.pickList(isAdmin()),
+);
+
+/** The game still open (or today's), if any. While it exists, no new game. */
+export const getOpenMatch = createServerFn({ method: "GET" }).handler(async () => ({
+  id: await repo.openMatchdayId(),
 }));
 
 export const addGuest = createServerFn({ method: "POST" })

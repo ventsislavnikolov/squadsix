@@ -1,4 +1,4 @@
-import type { QueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -8,12 +8,16 @@ import {
 import { PANE } from "@/components/page";
 import { LangToggle, ThemeToggle, THEME_SCRIPT } from "@/components/toggles";
 import { useI18n } from "@/lib/i18n";
-import { sessionQuery } from "@/lib/queries";
+import { openMatchQuery, sessionQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  beforeLoad: ({ context }) => context.queryClient.ensureQueryData(sessionQuery),
+  beforeLoad: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(sessionQuery),
+      context.queryClient.ensureQueryData(openMatchQuery),
+    ]),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -48,8 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-dvh">
         <Nav />
-        <main>{children}</main>
-        <Footer />
+        <main className="pb-10">{children}</main>
         <Scripts />
       </body>
     </html>
@@ -58,6 +61,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function Nav() {
   const { t, isAdmin } = useI18n();
+  const { data: open } = useSuspenseQuery(openMatchQuery);
   const link = "whitespace-nowrap text-fg/55 hover:text-fg transition-colors";
   const active = { className: "text-fg" };
   return (
@@ -69,9 +73,15 @@ function Nav() {
           <span className="eyebrow hidden md:inline">6 × 6</span>
         </Link>
         <div className="flex items-center gap-3.5 text-[13px] sm:gap-5">
-          <Link to="/" activeOptions={{ exact: true }} activeProps={active} className={link}>
-            {t.nav.newMatch}
-          </Link>
+          {open.id ? (
+            <Link to="/match/$id" params={{ id: open.id }} activeProps={active} className={link}>
+              {t.nav.match}
+            </Link>
+          ) : (
+            <Link to="/" activeOptions={{ exact: true }} activeProps={active} className={link}>
+              {t.nav.newMatch}
+            </Link>
+          )}
           <Link to="/history" activeProps={active} className={link}>
             {t.nav.history}
           </Link>
@@ -91,19 +101,6 @@ function Nav() {
         </div>
       </div>
     </nav>
-  );
-}
-
-function Footer() {
-  const { t, isAdmin } = useI18n();
-  return (
-    <footer className={cn(PANE, "flex justify-end py-8 text-[12px] text-fg/35")}>
-      {!isAdmin && (
-        <Link to="/login" className="hover:text-fg/70">
-          {t.nav.signIn}
-        </Link>
-      )}
-    </footer>
   );
 }
 

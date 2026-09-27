@@ -5,7 +5,7 @@
 import type { Player } from "@/domain/balance";
 import { nameFromInput, shortNames, type PersonName, type ShortName } from "@/domain/names";
 import { sql } from "./db";
-import { redactTrace, type HarnessStep, type Verdict } from "./jev-harness";
+import type { HarnessStep, Verdict } from "./jev-harness";
 
 /** A guest who hasn't played for this long drops off the pick list (not deleted). */
 const GUEST_FRESH_DAYS = 60;
@@ -189,21 +189,30 @@ export type MatchdaySummary = {
   voteCount: number;
 };
 
-export async function todayMatchdayId(): Promise<string | null> {
+/**
+ * The game people should be looking at: one still open for voting (whatever day it was
+ * made), otherwise today's. While there is one, no new game can be started.
+ */
+export async function openMatchdayId(): Promise<string | null> {
   const [row] = await sql`
-    select id from matchdays where played_on = (now() at time zone 'Europe/Sofia')::date`;
+    select id from matchdays
+    where locked_at is null or played_on = (now() at time zone 'Europe/Sofia')::date
+    order by (locked_at is null) desc, created_at desc
+    limit 1`;
   return row ? String(row.id) : null;
 }
 
-/** Creates today's game, or returns the one that already exists. */
+/** Creates today's game — unless one is still open or today already has one. */
 export async function createMatchday(
   playerIds: string[],
 ): Promise<{ id: string; created: boolean }> {
   const [row] = await sql`
-    insert into matchdays default values
+    insert into matchdays (played_on)
+    select (now() at time zone 'Europe/Sofia')::date
+    where not exists (select 1 from matchdays where locked_at is null)
     on conflict (played_on) do nothing
     returning id`;
-  if (!row) return { id: (await todayMatchdayId())!, created: false };
+  if (!row) return { id: (await openMatchdayId())!, created: false };
   const id = String(row.id);
   await sql`
     insert into matchday_players (matchday_id, player_id)
@@ -284,7 +293,7 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
         source: r.source as RunView["source"],
         error: (r.error as string | null) ?? null,
         durationMs: Number(r.duration_ms),
-        trace: admin ? trace : redactTrace(trace),
+        trace: admin ? trace : [],
       }
     : null;
 

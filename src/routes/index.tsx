@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRightIcon, LoaderIcon, SearchIcon, UserPlusIcon } from "lucide-react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { LoaderIcon, SearchIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { Empty, PageHead, PANE, Section } from "@/components/page";
@@ -10,20 +10,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { effectiveRating, SQUAD_SIZE } from "@/domain/balance";
 import { useI18n } from "@/lib/i18n";
-import { pickListQuery } from "@/lib/queries";
+import { openMatchQuery, pickListQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { addGuest, createMatchday } from "@/server/functions";
 import type { RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/")({
+  // While a game is open, there is no "new game" — go straight to it.
+  beforeLoad: async ({ context }) => {
+    const open = await context.queryClient.fetchQuery(openMatchQuery);
+    if (open.id) throw redirect({ to: "/match/$id", params: { id: open.id } });
+  },
   loader: ({ context }) => context.queryClient.ensureQueryData(pickListQuery),
   component: PickSquad,
 });
 
 function PickSquad() {
   const { t, error, isAdmin } = useI18n();
-  const { data } = useSuspenseQuery(pickListQuery);
-  const players = data.players;
+  const { data: players } = useSuspenseQuery(pickListQuery);
+  const qc = useQueryClient();
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
@@ -38,7 +43,10 @@ function PickSquad() {
 
   const make = useMutation({
     mutationFn: () => createMatchday({ data: { playerIds: [...picked] } }),
-    onSuccess: ({ id }) => navigate({ to: "/match/$id", params: { id } }),
+    onSuccess: async ({ id }) => {
+      await qc.invalidateQueries({ queryKey: ["open-match"] });
+      await navigate({ to: "/match/$id", params: { id } });
+    },
   });
 
   const q = filter.trim().toLocaleLowerCase();
@@ -55,23 +63,13 @@ function PickSquad() {
     .reduce((s, p) => s + effectiveRating({ rating: p.rating ?? null }), 0);
 
   return (
-    <div className={cn(PANE, "space-y-10 py-10 pb-36")}>
+    <div className={cn(PANE, "space-y-10 pt-10 pb-16")}>
       <PageHead
         eyebrow={t.pick.eyebrow(t.date(new Date().toISOString()))}
         title={t.pick.title}
         lead={t.pick.lead}
       />
 
-      {data.todayId && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/[0.06] px-4 py-3 text-[13.5px]">
-          <p>{t.pick.todayExists}</p>
-          <Button asChild size="sm">
-            <Link to="/match/$id" params={{ id: data.todayId }}>
-              {t.pick.openToday} <ArrowRightIcon />
-            </Link>
-          </Button>
-        </div>
-      )}
 
       <div className="relative max-w-sm">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg/35" />
@@ -125,7 +123,7 @@ function PickSquad() {
               </Button>
             )}
             <Button
-              disabled={!ready || make.isPending || !!data.todayId}
+              disabled={!ready || make.isPending}
               onClick={() => make.mutate()}
             >
               {make.isPending ? (
@@ -172,7 +170,7 @@ function Roster({
               disabled={blocked}
               onClick={() => onToggle(p.id)}
               className={cn(
-                "flex w-full items-center gap-3 py-2.5 text-left transition-colors",
+                "flex w-full items-center gap-3 rounded-sm py-2.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                 blocked ? "cursor-not-allowed opacity-35" : "hover:text-fg",
               )}
             >

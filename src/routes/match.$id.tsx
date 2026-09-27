@@ -12,6 +12,7 @@ import { useState } from "react";
 import { JevTrace } from "@/components/jev-trace";
 import { Figure, PageHead, PANE, Section } from "@/components/page";
 import { ProposalCard } from "@/components/proposal-card";
+import { ConfirmButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SQUAD_SIZE } from "@/domain/balance";
@@ -41,7 +42,12 @@ function MatchPage() {
   const [me, setMe] = useMe();
 
   const byId = new Map(day.players.map((p) => [p.id, p]));
-  const refresh = () => qc.invalidateQueries({ queryKey: ["matchday", id] });
+  const refresh = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ["matchday", id] }),
+      // Locking or unlocking decides whether a new game can be started.
+      qc.invalidateQueries({ queryKey: ["open-match"] }),
+    ]);
   const locked = day.lockedAt !== null;
   const meInSquad = byId.has(me);
 
@@ -66,6 +72,12 @@ function MatchPage() {
   const canRebalance = !locked && day.votes.length === 0 && runsLeft > 0;
 
   const chosen = day.proposals.find((p) => p.id === day.lockedProposalId);
+  // Who would win if locked now — same rule as the server: most votes, then Jev's order.
+  const leader = [...day.proposals].sort(
+    (x, y) =>
+      (votersOf.get(y.id)?.length ?? 0) - (votersOf.get(x.id)?.length ?? 0) ||
+      x.position - y.position,
+  )[0];
   const proposals = chosen
     ? [chosen, ...day.proposals.filter((p) => p !== chosen)]
     : day.proposals;
@@ -92,23 +104,29 @@ function MatchPage() {
                 <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
               </Button>
             )}
-            {!locked && day.proposals.length > 0 && (
-              <Button
+            {!locked && leader && (
+              <ConfirmButton
                 disabled={doLock.isPending}
-                onClick={() => confirm(t.match.lockConfirm) && doLock.mutate()}
+                title={t.match.lockTitle}
+                description={t.match.lockBody(leader.position, (votersOf.get(leader.id) ?? []).length)}
+                confirmLabel={t.match.lock}
+                onConfirm={() => doLock.mutate()}
               >
                 <LockIcon /> {t.match.lock}
-              </Button>
+              </ConfirmButton>
             )}
             {locked && chosen && <ShareButton day={day} teams={chosen} byId={byId} />}
             {locked && isAdmin && (
-              <Button
+              <ConfirmButton
                 variant="ghost"
                 disabled={doUnlock.isPending}
-                onClick={() => confirm(t.match.unlockConfirm) && doUnlock.mutate()}
+                title={t.match.unlockTitle}
+                description={t.match.unlockBody}
+                confirmLabel={t.match.unlock}
+                onConfirm={() => doUnlock.mutate()}
               >
                 <LockOpenIcon /> {t.match.unlock}
-              </Button>
+              </ConfirmButton>
             )}
           </>
         }
@@ -142,16 +160,6 @@ function MatchPage() {
             </>
           }
         />
-        {day.run && (
-          <>
-            <Figure
-              label={t.match.decidedBy}
-              value={day.run.source === "jev" ? day.run.model : t.match.arithmetic}
-              tone={day.run.source === "jev" ? "confirmed" : "warning"}
-            />
-            <Figure label={t.match.time} value={`${(day.run.durationMs / 1000).toFixed(2)} s`} />
-          </>
-        )}
       </div>
 
       {!locked && (
@@ -186,7 +194,8 @@ function MatchPage() {
         })}
       </div>
 
-      {day.run && (
+      {/* The harness trace is for the admin, who is learning how Jev decides. */}
+      {isAdmin && day.run && (
         <Section title={t.match.howTitle} note={t.match.howNote}>
           <JevTrace steps={day.run.trace} />
         </Section>

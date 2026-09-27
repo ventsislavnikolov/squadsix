@@ -204,7 +204,13 @@ function Editor({
           <Switch checked={draft.hidden} onCheckedChange={(v) => set("hidden", v)} />
           {t.admin.hidden}
         </label>
-        <Button size="sm" disabled={!dirty || !valid || save.isPending} onClick={() => save.mutate()}>
+        {/* Only the row you touched offers to save; the others stay quiet. */}
+        <Button
+          size="sm"
+          className={cn(!dirty && "invisible")}
+          disabled={!dirty || !valid || save.isPending}
+          onClick={() => save.mutate()}
+        >
           {t.common.save}
         </Button>
         {onDone && (
