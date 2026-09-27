@@ -23,8 +23,8 @@ Ratings are admin-only. Rules and vocabulary: see `CONTEXT.md`.
 ## Stack
 
 TanStack Start (Router + server functions) · TanStack Query · TanStack Form · TanStack AI
-(`decide()` + `@tanstack/ai-typesafe`) · Neon Postgres · Tailwind v4 + shadcn primitives,
-design language from RefAI · deployed on Vercel (Nitro).
+(`decide()` + `@tanstack/ai-typesafe`) · Neon Postgres · Tailwind v4 + shadcn/ui (`radix-rhea`
+preset), Outfit + Onest · deployed on Vercel (Nitro).
 
 ## Run
 

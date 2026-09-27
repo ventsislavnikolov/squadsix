@@ -32,6 +32,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 8. Jev's trace ("How Jev decided") is shown only to the admin; the "decided by" model line is gone.
    Confirmations use an in-app dialog, never the browser's confirm().
 9. Themes are light and dark, following the system by default. This departs from RefAI's single dark theme on purpose: the app is read on phones outdoors.
+10. Look (2026-09-27): shadcn preset `b2qMGAMQi` (style `radix-rhea`) for components, plus the user's palette in `src/styles.css` (green primary, Outfit). Outfit has no Cyrillic, so Onest fills in the Bulgarian letters.
 
 ## Jev
 
