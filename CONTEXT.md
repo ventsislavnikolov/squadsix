@@ -29,7 +29,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 5. There's an activity log of every action, refusals included, with IP and user agent. It's kept for 90 days and is admin-only.
 6. After the lock, the teams can be shared to Messenger (share sheet or clipboard).
 7. There are no goalkeepers or positions. It's always 12 players; odd numbers and other sizes are out of scope.
-8. Jev's trace ("How Jev decided") and which model decided are shown only to the admin.
+8. Jev's trace ("How Jev decided") is shown only to the admin; the "decided by" model line is gone.
    Confirmations use an in-app dialog, never the browser's confirm().
 9. Themes are light and dark, following the system by default. This departs from RefAI's single dark theme on purpose: the app is read on phones outdoors.
 
