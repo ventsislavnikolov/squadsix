@@ -34,6 +34,20 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 9. Themes are light and dark, following the system by default. This departs from RefAI's single dark theme on purpose: the app is read on phones outdoors.
 10. Look (2026-09-27): shadcn preset `b2qMGAMQi` (style `radix-rhea`) for components, plus the user's palette in `src/styles.css` (green primary, Outfit). Outfit has no Cyrillic, so Onest fills in the Bulgarian letters.
 
+## Sign-up (2026-09-28 grilling)
+
+- **Announcement**: day, time and place, plus an optional note. Anyone can announce, on trust, as the name picked on their phone. It can be at most 14 days ahead and never in the past. Only one game can be open at a time.
+- **Venue**: a name and an optional Google Maps link. Anyone can add one while announcing; the admin edits or hides venues at /admin/venues.
+- **Sign-up list**: the first 12 play and the rest are reserves. Office regulars go ahead of guests until 24 hours before kick-off; after that nobody is pushed out (`src/domain/signup.ts`).
+- **Adding and removing**: you can sign up yourself, another player, or a guest, and the list shows who added whom. A name can be removed by the player, by whoever added them, or by the admin.
+- **Teams**: "Make teams" appears once 12 are in. If nobody presses it, the app makes them itself 2 hours before kick-off.
+- **Dropouts**: before the lock, a reserve comes in, the teams are remade and the votes are cleared; these automatic re-dos don't use up the 3 tries. After the lock, the reserve takes the leaver's exact place. With no reserve, the page says "N more needed".
+- **Kick-off**: sign-up and voting close, the game locks itself, and the result can be entered. A game without 12 players never locks itself.
+- **Edit and cancel**: whoever announced the game, or the admin, can do either. The page shows what changed. A cancelled game stays in the history and frees its day.
+- **Quick pick**: still available when nothing is announced. Time and place are optional and pre-filled, and it never acts on its own.
+- **No scheduler**: Vercel cron needs a paid plan, so the time-based steps run whenever someone opens the app (`repo.dueNow`, called from `getOpenMatch` and `getMatchday`).
+- **Players** keep their real names; there are no nicknames.
+
 ## Jev
 
 Jev is a decision model, not a chat LLM. See `src/server/jev-harness.ts`. It's reached two ways: TypeSafe directly (`TYPESAFE_API_KEY`), or through OpenRouter (`OPENROUTER_API_KEY`, model `~typesafe/jev-latest`). Without either key, the app uses arithmetic only and says so.

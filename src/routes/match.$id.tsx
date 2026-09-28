@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
+  Ban,
   LoaderIcon,
   LockIcon,
   LockOpenIcon,
@@ -9,15 +10,18 @@ import {
   Share2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { JevTrace } from "@/components/jev-trace";
-import { Figure, PageHead, PANE, Section } from "@/components/page";
-import { ProposalCard } from "@/components/proposal-card";
 import { ConfirmButton } from "@/components/confirm-button";
+import { JevTrace } from "@/components/jev-trace";
+import { PageHead, PANE, Section } from "@/components/page";
+import { ProposalCard } from "@/components/proposal-card";
+import { AnnounceShare, EventInfo, OwnerActions, SignupPanel } from "@/components/signup-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SQUAD_SIZE } from "@/domain/balance";
+import { WhoAmI } from "@/components/who-am-i";
+import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
-import { matchdayQuery } from "@/lib/queries";
+import { matchdayQuery, pickListQuery } from "@/lib/queries";
+import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
 import { lock, rebalance, setResult, unlock, vote } from "@/server/functions";
@@ -25,7 +29,10 @@ import type { MatchdayView, RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/match/$id")({
   loader: async ({ context, params }) => {
-    const day = await context.queryClient.ensureQueryData(matchdayQuery(params.id));
+    const [day] = await Promise.all([
+      context.queryClient.ensureQueryData(matchdayQuery(params.id)),
+      context.queryClient.ensureQueryData(pickListQuery),
+    ]);
     if (!day) throw notFound();
   },
   component: MatchPage,
@@ -33,13 +40,17 @@ export const Route = createFileRoute("/match/$id")({
 
 const MAX_RUNS = 3;
 
+/**
+ * One game, start to finish, on one page: the announcement and its list, then — once
+ * there are teams — the three options and the vote, then the result.
+ */
 function MatchPage() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(matchdayQuery(id));
   const day = data!;
   const { t, name, error, isAdmin } = useI18n();
   const qc = useQueryClient();
-  const [me, setMe] = useMe();
+  const [me] = useMe();
 
   const byId = new Map(day.players.map((p) => [p.id, p]));
   const refresh = () =>
@@ -48,8 +59,12 @@ function MatchPage() {
       // Locking or unlocking decides whether a new game can be started.
       qc.invalidateQueries({ queryKey: ["open-match"] }),
     ]);
+  const cancelled = day.cancelledAt !== null;
   const locked = day.lockedAt !== null;
-  const meInSquad = byId.has(me);
+  const hasTeams = day.proposals.length > 0;
+  const started = day.kind === "announced" && hasStarted(day.startsAt);
+  const inSquad = new Set(day.squad);
+  const meInSquad = inSquad.has(me);
 
   const cast = useMutation({
     mutationFn: (proposalId: string) => vote({ data: { matchdayId: id, proposalId, playerId: me } }),
@@ -67,9 +82,9 @@ function MatchPage() {
   const top = Math.max(0, ...[...votersOf.values()].map((v) => v.length));
   const myVote = day.votes.find((v) => v.playerId === me)?.proposalId;
   const voted = new Set(day.votes.map((v) => v.playerId));
-  const notVoted = day.players.filter((p) => !voted.has(p.id));
+  const notVoted = day.squad.filter((pid) => !voted.has(pid)).map((pid) => byId.get(pid));
   const runsLeft = MAX_RUNS - day.runsUsed;
-  const canRebalance = !locked && day.votes.length === 0 && runsLeft > 0;
+  const canRebalance = !locked && day.votes.length === 0 && runsLeft > 0 && day.squad.length === 12;
 
   const chosen = day.proposals.find((p) => p.id === day.lockedProposalId);
   // Who would win if locked now — same rule as the server: most votes, then Jev's order.
@@ -82,15 +97,32 @@ function MatchPage() {
     ? [chosen, ...day.proposals.filter((p) => p !== chosen)]
     : day.proposals;
 
+  const when = day.startsAt ? t.when(day.startsAt) : t.date(day.playedOn);
+  const title = cancelled
+    ? t.event.cancelled
+    : locked
+      ? t.match.titleLocked
+      : hasTeams
+        ? t.match.titleOpen
+        : when;
+
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
       <PageHead
-        eyebrow={t.match.eyebrow(t.date(day.playedOn))}
-        title={locked ? t.match.titleLocked : t.match.titleOpen}
-        lead={locked ? t.match.leadLocked : t.match.leadOpen}
+        eyebrow={hasTeams || cancelled ? t.match.eyebrow(when) : t.nav.match}
+        title={title}
+        lead={
+          cancelled
+            ? day.cancelReason
+            : locked
+              ? t.match.leadLocked
+              : hasTeams
+                ? t.match.leadOpen
+                : undefined
+        }
         actions={
           <>
-            {!locked && (
+            {!cancelled && !locked && hasTeams && (
               <Button
                 variant="outline"
                 disabled={!canRebalance || again.isPending}
@@ -104,7 +136,7 @@ function MatchPage() {
                 <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
               </Button>
             )}
-            {!locked && leader && (
+            {!cancelled && !locked && leader && day.squad.length === 12 && (
               <ConfirmButton
                 disabled={doLock.isPending}
                 title={t.match.lockTitle}
@@ -115,8 +147,9 @@ function MatchPage() {
                 <LockIcon /> {t.match.lock}
               </ConfirmButton>
             )}
-            {locked && chosen && <ShareButton day={day} teams={chosen} byId={byId} />}
-            {locked && isAdmin && (
+            {!cancelled && !locked && <AnnounceShare day={day} byId={byId} />}
+            {!cancelled && locked && chosen && <ShareButton day={day} teams={chosen} byId={byId} />}
+            {locked && isAdmin && !cancelled && (
               <ConfirmButton
                 variant="ghost"
                 disabled={doUnlock.isPending}
@@ -128,9 +161,19 @@ function MatchPage() {
                 <LockOpenIcon /> {t.match.unlock}
               </ConfirmButton>
             )}
+            <OwnerActions day={day} />
           </>
         }
       />
+
+      {cancelled && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/[0.07] px-4 py-3 text-[14px]">
+          <Ban className="size-4 text-destructive" />
+          {t.event.cancelled}
+        </div>
+      )}
+
+      {(day.venue || day.note || day.changes || day.createdBy) && <EventInfo day={day} byId={byId} />}
 
       {isAdmin && day.run?.source === "fallback" && (
         <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning/[0.07] px-4 py-3 text-[13.5px]">
@@ -149,111 +192,53 @@ function MatchPage() {
 
       {failure && <p className="text-[13px] text-destructive">{error(failure)}</p>}
 
-      <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
-        <Figure label={t.match.players} value={day.players.length} />
-        <Figure
-          label={t.match.voted}
-          value={
-            <>
-              {day.votes.length}
-              <span className="text-fg/35">/{SQUAD_SIZE}</span>
-            </>
-          }
-        />
-      </div>
+      {!cancelled && !started && <WhoAmI />}
 
-      {!locked && (
-        <Identity players={day.players} me={me} meInSquad={meInSquad} setMe={setMe} />
+      {!hasTeams && <SignupPanel day={day} byId={byId} />}
+
+      {hasTeams && !cancelled && (
+        <>
+          {locked && chosen && (day.kind === "quick" || started) && <ResultForm day={day} />}
+
+          {!locked && me && !meInSquad && (
+            <p className="text-[13px] text-fg/50">{t.match.notInSquad}</p>
+          )}
+          {!locked && notVoted.length > 0 && day.votes.length > 0 && (
+            <p className="text-[12.5px] text-fg/45">
+              {t.match.voted} {day.votes.length}/12 · {t.match.notVoted(notVoted.map((p) => name(p?.name)).join(", "))}
+            </p>
+          )}
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {proposals.map((p) => {
+              const voters = votersOf.get(p.id) ?? [];
+              return (
+                <ProposalCard
+                  key={p.id}
+                  proposal={p}
+                  byId={byId}
+                  voters={voters}
+                  leading={voters.length === top && top > 0}
+                  mine={myVote === p.id}
+                  chosen={p.id === day.lockedProposalId}
+                  canVote={!locked && !started && meInSquad}
+                  voting={cast.isPending}
+                  onVote={() => cast.mutate(p.id)}
+                />
+              );
+            })}
+          </div>
+
+          <SignupPanel day={day} byId={byId} />
+        </>
       )}
-
-      {!locked && notVoted.length > 0 && day.votes.length > 0 && (
-        <p className="text-[12.5px] text-fg/45">
-          {t.match.notVoted(notVoted.map((p) => name(p.name)).join(", "))}
-        </p>
-      )}
-
-      {locked && chosen && <ResultForm day={day} />}
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        {proposals.map((p) => {
-          const voters = votersOf.get(p.id) ?? [];
-          return (
-            <ProposalCard
-              key={p.id}
-              proposal={p}
-              byId={byId}
-              voters={voters}
-              leading={voters.length === top && top > 0}
-              mine={myVote === p.id}
-              chosen={p.id === day.lockedProposalId}
-              canVote={!locked && meInSquad}
-              voting={cast.isPending}
-              onVote={() => cast.mutate(p.id)}
-            />
-          );
-        })}
-      </div>
 
       {/* The harness trace is for the admin, who is learning how Jev decides. */}
-      {isAdmin && day.run && (
+      {isAdmin && day.run && day.run.trace.length > 0 && (
         <Section title={t.match.howTitle} note={t.match.howNote}>
           <JevTrace steps={day.run.trace} />
         </Section>
       )}
-    </div>
-  );
-}
-
-/** "Who are you?" — the twelve names, one tap. Remembered on this phone. */
-function Identity({
-  players,
-  me,
-  meInSquad,
-  setMe,
-}: {
-  players: RosterPlayer[];
-  me: string;
-  meInSquad: boolean;
-  setMe: (id: string) => void;
-}) {
-  const { t, name } = useI18n();
-  const [choosing, setChoosing] = useState(false);
-
-  if (me && !choosing) {
-    const self = players.find((p) => p.id === me);
-    return (
-      <p className="text-[13px] text-fg/55">
-        {meInSquad ? t.match.votingAs(name(self?.name)) : t.match.notInSquad}{" "}
-        <button
-          type="button"
-          className="underline underline-offset-4 hover:text-fg"
-          onClick={() => setChoosing(true)}
-        >
-          {t.match.notYou}
-        </button>
-      </p>
-    );
-  }
-
-  return (
-    <div>
-      <p className="eyebrow">{t.match.whoAreYou}</p>
-      <p className="mt-2 text-[13px] text-fg/50">{t.match.whoAreYouNote}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {players.map((p) => (
-          <Button
-            key={p.id}
-            size="sm"
-            variant={p.id === me ? "default" : "outline"}
-            onClick={() => {
-              setMe(p.id);
-              setChoosing(false);
-            }}
-          >
-            {name(p.name)}
-          </Button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -347,19 +332,12 @@ function ShareButton({
     <Button
       variant="outline"
       onClick={async () => {
-        const text = t.match.shareText(t.date(day.playedOn), list(teams.teamA), list(teams.teamB));
-        const url = window.location.href;
-        try {
-          if (navigator.share) {
-            await navigator.share({ text: `${text}\n\n${url}` });
-            return;
-          }
-        } catch (err) {
-          if ((err as Error).name === "AbortError") return; // closed the share sheet
+        const when = day.startsAt ? t.when(day.startsAt) : t.date(day.playedOn);
+        const text = t.match.shareText(when, list(teams.teamA), list(teams.teamB));
+        if ((await shareText(`${text}\n\n${window.location.href}`)) === "copied") {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
         }
-        await navigator.clipboard.writeText(`${text}\n\n${url}`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
       }}
     >
       <Share2Icon /> {copied ? t.match.shared : t.match.share}

@@ -85,6 +85,11 @@ function Nav() {
             </Link>
           )}
           {isAdmin && (
+            <Link to="/admin/venues" activeProps={active} className={cn(link, "hidden sm:inline")}>
+              {t.nav.venues}
+            </Link>
+          )}
+          {isAdmin && (
             <Link to="/admin/log" activeProps={active} className={cn(link, "hidden sm:inline")}>
               {t.nav.log}
             </Link>

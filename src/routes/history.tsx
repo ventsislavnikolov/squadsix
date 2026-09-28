@@ -28,7 +28,10 @@ function History() {
                 params={{ id: d.id }}
                 className="flex items-baseline justify-between gap-4 py-3.5 text-[14px] hover:text-fg"
               >
-                <span className="text-fg/80">{t.date(d.playedOn, "short")}</span>
+                <span className="min-w-0 text-fg/80">
+                  {d.startsAt ? t.when(d.startsAt) : t.date(d.playedOn, "short")}
+                  {d.venueName && <span className="ml-2 text-[12.5px] text-fg/45">{d.venueName}</span>}
+                </span>
                 <span className="font-mono text-[12px] tabular-nums text-fg/50">
                   <Outcome day={d} />
                 </span>
@@ -43,6 +46,8 @@ function History() {
 
 function Outcome({ day }: { day: MatchdaySummary }) {
   const { t } = useI18n();
+  if (day.cancelled) return <span className="text-destructive">{t.history.cancelled}</span>;
+  if (!day.locked && day.voteCount === 0) return <>{t.history.signing(Math.min(day.signupCount, 12))}</>;
   if (!day.locked) return <>{t.history.open} · {t.match.votes(day.voteCount)}</>;
   if (!day.winner) return <>{t.history.lockedNoResult}</>;
   const score = day.scoreA !== null && day.scoreB !== null ? ` · ${day.scoreA}:${day.scoreB}` : "";

@@ -13,8 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NewRouteImport } from './routes/new'
+import { Route as QuickRouteImport } from './routes/quick'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminLogRouteImport } from './routes/admin/log'
+import { Route as AdminVenuesRouteImport } from './routes/admin/venues'
+import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as MatchIdRouteImport } from './routes/match.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -37,6 +41,16 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewRoute = NewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuickRoute = QuickRouteImport.update({
+  id: '/quick',
+  path: '/quick',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -46,6 +60,16 @@ const AdminLogRoute = AdminLogRouteImport.update({
   id: '/log',
   path: '/log',
   getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminVenuesRoute = AdminVenuesRouteImport.update({
+  id: '/venues',
+  path: '/venues',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const EditIdRoute = EditIdRouteImport.update({
+  id: '/edit/$id',
+  path: '/edit/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MatchIdRoute = MatchIdRouteImport.update({
   id: '/match/$id',
@@ -58,7 +82,11 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
+  '/new': typeof NewRoute
+  '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/venues': typeof AdminVenuesRoute
+  '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -66,7 +94,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
+  '/new': typeof NewRoute
+  '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/venues': typeof AdminVenuesRoute
+  '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -76,7 +108,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
+  '/new': typeof NewRoute
+  '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/venues': typeof AdminVenuesRoute
+  '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -87,18 +123,36 @@ export interface FileRouteTypes {
     | '/admin'
     | '/history'
     | '/login'
+    | '/new'
+    | '/quick'
     | '/admin/log'
+    | '/admin/venues'
+    | '/edit/$id'
     | '/match/$id'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/history' | '/login' | '/admin/log' | '/match/$id' | '/admin'
+  to:
+    | '/'
+    | '/history'
+    | '/login'
+    | '/new'
+    | '/quick'
+    | '/admin/log'
+    | '/admin/venues'
+    | '/edit/$id'
+    | '/match/$id'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/history'
     | '/login'
+    | '/new'
+    | '/quick'
     | '/admin/log'
+    | '/admin/venues'
+    | '/edit/$id'
     | '/match/$id'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -108,6 +162,9 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   HistoryRoute: typeof HistoryRoute
   LoginRoute: typeof LoginRoute
+  NewRoute: typeof NewRoute
+  QuickRoute: typeof QuickRoute
+  EditIdRoute: typeof EditIdRoute
   MatchIdRoute: typeof MatchIdRoute
 }
 
@@ -141,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/new': {
+      id: '/new'
+      path: '/new'
+      fullPath: '/new'
+      preLoaderRoute: typeof NewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quick': {
+      id: '/quick'
+      path: '/quick'
+      fullPath: '/quick'
+      preLoaderRoute: typeof QuickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -155,6 +226,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLogRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/venues': {
+      id: '/admin/venues'
+      path: '/venues'
+      fullPath: '/admin/venues'
+      preLoaderRoute: typeof AdminVenuesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/edit/$id': {
+      id: '/edit/$id'
+      path: '/edit/$id'
+      fullPath: '/edit/$id'
+      preLoaderRoute: typeof EditIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/match/$id': {
       id: '/match/$id'
       path: '/match/$id'
@@ -167,11 +252,13 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminLogRoute: typeof AdminLogRoute
+  AdminVenuesRoute: typeof AdminVenuesRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminLogRoute: AdminLogRoute,
+  AdminVenuesRoute: AdminVenuesRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -184,6 +271,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   HistoryRoute: HistoryRoute,
   LoginRoute: LoginRoute,
+  NewRoute: NewRoute,
+  QuickRoute: QuickRoute,
+  EditIdRoute: EditIdRoute,
   MatchIdRoute: MatchIdRoute,
 }
 export const routeTree = rootRouteImport

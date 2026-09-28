@@ -10,6 +10,7 @@ import {
   getOpenMatch,
   getPickList,
   getSession,
+  getVenues,
 } from "@/server/functions";
 
 /** Language and whether the admin is signed in. Changes only on explicit action. */
@@ -51,4 +52,9 @@ export const fullRosterQuery = queryOptions({
 export const logQuery = queryOptions({
   queryKey: ["log"],
   queryFn: () => getLog(),
+});
+
+export const venuesQuery = queryOptions({
+  queryKey: ["venues"],
+  queryFn: () => getVenues(),
 });

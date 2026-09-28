@@ -39,3 +39,9 @@ Schema: `db/schema.sql`. Placeholder roster: `db/seed.sql`.
 ## Later
 
 Players' own sign-in; anonymous peer ratings; rating suggestions from results.
+
+## Migrations
+
+```bash
+DATABASE_URL=… node scripts/migrate.mjs db/002_signups.sql
+```

@@ -7,6 +7,13 @@ import type { Json } from "./jev-harness";
 
 export type Action =
   | "matchday.create"
+  | "matchday.announce"
+  | "matchday.edit"
+  | "matchday.cancel"
+  | "signup.add"
+  | "signup.remove"
+  | "signup.reconcile"
+  | "admin.venue.save"
   | "matchday.lock"
   | "matchday.unlock"
   | "matchday.result"
