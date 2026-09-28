@@ -210,7 +210,7 @@ function jevAdapter(): AnyEvaluateAdapter | null {
   if (openrouter) {
     return createOpenRouterDecider(JEV_OPENROUTER_MODEL, openrouter, {
       xTitle: "Squad Six",
-      httpReferer: "https://squad-six-fourth.vercel.app",
+      httpReferer: "https://squadsix.vercel.app",
     });
   }
   return null;
