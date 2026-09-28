@@ -51,6 +51,9 @@ const bg = {
     as: (name: string) => `Ти си ${name}.`,
     change: "Не си ти?",
     search: "Търси името си",
+    confirm: (name: string) => `Ти ли си ${name}?`,
+    yes: "Да, аз съм",
+    no: "Не",
   },
   event: {
     newEyebrow: "Нова обява",
@@ -308,6 +311,9 @@ const en: Dict = {
     as: (name) => `You're ${name}.`,
     change: "Not you?",
     search: "Find your name",
+    confirm: (name) => `Are you ${name}?`,
+    yes: "Yes, that's me",
+    no: "No",
   },
   event: {
     newEyebrow: "New game",
