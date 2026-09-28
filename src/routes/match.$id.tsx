@@ -132,7 +132,7 @@ function MatchPage() {
         }
       />
 
-      {day.run?.source === "fallback" && (
+      {isAdmin && day.run?.source === "fallback" && (
         <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning/[0.07] px-4 py-3 text-[13.5px]">
           <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" />
           <div>

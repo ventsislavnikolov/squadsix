@@ -72,7 +72,6 @@ export function ProposalCard({
       </div>
 
       <div className="border-t border-fg/[0.07] px-5 py-4">
-        <p className="eyebrow">{v ? t.match.whyJev(v.candidate) : t.match.whyNoJev}</p>
         {v && <Meter fairness={v.fairness} low={t.match.scaleLow} high={t.match.scaleHigh} />}
         <p className="mt-3 text-[13px] leading-[1.65] text-fg/60">
           {v
@@ -165,7 +164,7 @@ function Side({
 /** Jev's fairness score on a scale from one-sided to dead even. */
 function Meter({ fairness, low, high }: { fairness: number; low: string; high: string }) {
   return (
-    <div className="mt-3">
+    <div className="mt-1">
       <div className="relative h-1.5 rounded-full bg-fg/[0.07]">
         <span
           className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
