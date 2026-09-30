@@ -13,6 +13,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     resolve: { tsconfigPaths: true },
-    plugins: [devtools(), nitro(), tailwindcss(), tanstackStart(), viteReact()],
+    // Link-preview pictures: resvg is a native addon and satori's harfbuzz needs
+    // __dirname, so both ship as real packages instead of being bundled.
+    ssr: { external: ['@resvg/resvg-js', 'satori'] },
+    plugins: [
+      devtools(),
+      nitro({ traceDeps: ['satori*', 'harfbuzzjs*', '@resvg/resvg-js*'] }),
+      tailwindcss(),
+      tanstackStart(),
+      viteReact(),
+    ],
   }
 })

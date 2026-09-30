@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { WhoAmI } from "@/components/who-am-i";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
+import { matchPreview, SITE } from "@/lib/preview";
 import { matchdayQuery, pickListQuery } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
@@ -34,6 +35,32 @@ export const Route = createFileRoute("/match/$id")({
       context.queryClient.ensureQueryData(pickListQuery),
     ]);
     if (!day) throw notFound();
+    return { preview: matchPreview(day), version: `${day.signups.length}-${day.proposals.length}-${day.lockedAt ?? ""}-${day.winner ?? ""}` };
+  },
+  // What Messenger shows when the link is pasted into the group.
+  head: ({ loaderData, params }) => {
+    if (!loaderData) return {};
+    const { preview: p, version } = loaderData;
+    const url = `${SITE}/match/${params.id}`;
+    // A new version in the query makes Messenger fetch a fresh picture once the list moves.
+    const image = `${SITE}/og/${params.id}?v=${encodeURIComponent(version)}`;
+    return {
+      meta: [
+        { title: p.title },
+        { name: "description", content: p.description },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "Squad Six" },
+        { property: "og:locale", content: "bg_BG" },
+        { property: "og:url", content: url },
+        { property: "og:title", content: p.title },
+        { property: "og:description", content: p.description },
+        { property: "og:image", content: image },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { property: "og:image:alt", content: `${p.badge} · ${p.when}` },
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+    };
   },
   component: MatchPage,
 });

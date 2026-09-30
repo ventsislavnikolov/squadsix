@@ -20,6 +20,7 @@ import { Route as AdminLogRouteImport } from './routes/admin/log'
 import { Route as AdminVenuesRouteImport } from './routes/admin/venues'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as MatchIdRouteImport } from './routes/match.$id'
+import { Route as OgIdRouteImport } from './routes/og.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const MatchIdRoute = MatchIdRouteImport.update({
   path: '/match/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OgIdRoute = OgIdRouteImport.update({
+  id: '/og/$id',
+  path: '/og/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
+  '/og/$id': typeof OgIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
+  '/og/$id': typeof OgIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
+  '/og/$id': typeof OgIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
+    | '/og/$id'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
+    | '/og/$id'
     | '/admin'
   id:
     | '__root__'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
+    | '/og/$id'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   QuickRoute: typeof QuickRoute
   EditIdRoute: typeof EditIdRoute
   MatchIdRoute: typeof MatchIdRoute
+  OgIdRoute: typeof OgIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/og/$id': {
+      id: '/og/$id'
+      path: '/og/$id'
+      fullPath: '/og/$id'
+      preLoaderRoute: typeof OgIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -275,6 +295,7 @@ const rootRouteChildren: RootRouteChildren = {
   QuickRoute: QuickRoute,
   EditIdRoute: EditIdRoute,
   MatchIdRoute: MatchIdRoute,
+  OgIdRoute: OgIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

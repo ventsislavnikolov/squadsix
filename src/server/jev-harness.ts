@@ -24,6 +24,7 @@ import {
   type Split,
   type SplitScore,
 } from "@/domain/balance";
+import { SITE } from "@/lib/preview";
 
 export const JEV_MODEL = "jev-latest";
 /** The same model, hosted by OpenRouter — no TypeSafe account needed. */
@@ -210,7 +211,7 @@ function jevAdapter(): AnyEvaluateAdapter | null {
   if (openrouter) {
     return createOpenRouterDecider(JEV_OPENROUTER_MODEL, openrouter, {
       xTitle: "Squad Six",
-      httpReferer: "https://squadsix.vercel.app",
+      httpReferer: SITE,
     });
   }
   return null;
