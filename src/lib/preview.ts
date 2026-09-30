@@ -4,7 +4,9 @@
 
 import type { MatchdayView } from "@/server/repo";
 
-export const SITE = "https://squadsix.vercel.app";
+// Our own domain: Facebook refuses to fetch *.vercel.app links, so previews and shared
+// links must live here. squadsix.vercel.app still serves the same app.
+export const SITE = "https://squadsix.ventsislavnikolov.com";
 
 export type Preview = {
   /** Big word on the picture: what state the game is in. */
@@ -104,6 +106,5 @@ export function previewVersion(day: MatchdayView): string {
  * the query makes each new state a new URL.
  */
 export function shareUrl(day: MatchdayView): string {
-  const origin = typeof window === "undefined" ? SITE : window.location.origin;
-  return `${origin}/match/${day.id}?v=${previewVersion(day)}`;
+  return `${SITE}/match/${day.id}?v=${previewVersion(day)}`;
 }

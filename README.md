@@ -48,6 +48,6 @@ DATABASE_URL=… node scripts/migrate.mjs db/002_signups.sql
 
 ## Deploy
 
-Live at https://squadsix.vercel.app. Every push to `main` on
+Live at https://squadsix.ventsislavnikolov.com (also https://squadsix.vercel.app). Every push to `main` on
 [github.com/ventsislavnikolov/squadsix](https://github.com/ventsislavnikolov/squadsix)
 deploys to production (Vercel project `squadsix`).
