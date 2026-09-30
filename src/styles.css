@@ -232,6 +232,11 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
   }
+  /* Keep room for the scrollbar on short pages too, so long pages (players, log)
+     don't sit a few pixels off from short ones. */
+  html {
+    scrollbar-gutter: stable;
+  }
 
   html {
     @apply font-sans;
