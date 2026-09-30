@@ -35,7 +35,11 @@ export const Route = createFileRoute("/og/$id")({
         });
         const png = new Resvg(svg).render().asPng();
         return new Response(new Uint8Array(png), {
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=300, s-maxage=300" },
+          headers: {
+            "Content-Type": "image/png",
+            "Content-Length": String(png.length),
+            "Cache-Control": "public, max-age=300, s-maxage=300",
+          },
         });
       },
     },
