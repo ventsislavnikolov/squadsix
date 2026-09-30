@@ -50,8 +50,9 @@ export const Route = createFileRoute("/match/$id")({
         { property: "og:type", content: "website" },
         { property: "og:site_name", content: "Squad Six" },
         { property: "og:locale", content: "bg_BG" },
-        // No og:url: Facebook would treat it as the canonical link and reuse that link's
-        // cached preview for every ?v= we share.
+        // og:url carries the same ?v= as the shared link, so each state stays its own
+        // preview instead of folding back onto one cached card.
+        { property: "og:url", content: `${SITE}/match/${params.id}?v=${version}` },
         { property: "og:title", content: p.title },
         { property: "og:description", content: p.description },
         { property: "og:image", content: image },
