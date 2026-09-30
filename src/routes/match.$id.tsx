@@ -246,9 +246,13 @@ function MatchPage() {
 function ResultForm({ day }: { day: MatchdayView }) {
   const { t, error } = useI18n();
   const qc = useQueryClient();
-  const [winner, setWinner] = useState(day.winner);
+  const [picked, setPicked] = useState(day.winner);
   const [a, setA] = useState(day.scoreA?.toString() ?? "");
   const [b, setB] = useState(day.scoreB?.toString() ?? "");
+  // A full score names the winner by itself; the buttons are for when nobody kept score.
+  const fromScore =
+    a === "" || b === "" ? null : Number(a) > Number(b) ? "a" : Number(a) < Number(b) ? "b" : "draw";
+  const winner = fromScore ?? picked;
   const save = useMutation({
     mutationFn: () =>
       setResult({
@@ -277,7 +281,14 @@ function ResultForm({ day }: { day: MatchdayView }) {
               key={o.value}
               variant={winner === o.value ? "default" : "outline"}
               className={cn(winner !== o.value && o.tone)}
-              onClick={() => setWinner(o.value)}
+              onClick={() => {
+                setPicked(o.value);
+                // Picking against the typed score means the score was wrong: drop it.
+                if (fromScore && fromScore !== o.value) {
+                  setA("");
+                  setB("");
+                }
+              }}
             >
               {o.label}
             </Button>
