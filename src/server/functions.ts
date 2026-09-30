@@ -386,13 +386,15 @@ export const setResult = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const ok = await repo.setResult(data.id, data.winner, data.scoreA, data.scoreB);
+    const admin = isAdmin();
+    const ok = admin && (await repo.setResult(data.id, data.winner, data.scoreA, data.scoreB));
     await logAction({
       action: "matchday.result",
       ok,
       matchdayId: data.id,
       detail: { winner: data.winner, scoreA: data.scoreA, scoreB: data.scoreB },
     });
+    if (!admin) fail("admin-only");
     if (!ok) fail("not-locked");
   });
 

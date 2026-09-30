@@ -192,13 +192,15 @@ function MatchPage() {
 
       {failure && <p className="text-[13px] text-destructive">{error(failure)}</p>}
 
-      {!cancelled && !started && <WhoAmI />}
+      {/* Once locked there's no vote left; only say who you are if you already picked. */}
+      {!cancelled && !started && (!locked || me) && <WhoAmI />}
 
       {!hasTeams && <SignupPanel day={day} byId={byId} />}
 
       {hasTeams && !cancelled && (
         <>
-          {locked && chosen && (day.kind === "quick" || started) && <ResultForm day={day} />}
+          {locked && chosen && (day.kind === "quick" || started) &&
+            (isAdmin ? <ResultForm day={day} /> : day.winner && <ResultView day={day} />)}
 
           {!locked && me && !meInSquad && (
             <p className="text-[13px] text-fg/50">{t.match.notInSquad}</p>
@@ -240,6 +242,29 @@ function MatchPage() {
         </Section>
       )}
     </div>
+  );
+}
+
+/** The result as everyone else sees it: only the admin writes it. */
+function ResultView({ day }: { day: MatchdayView }) {
+  const { t } = useI18n();
+  const score = day.scoreA !== null && day.scoreB !== null ? ` · ${day.scoreA}:${day.scoreB}` : "";
+  const text =
+    day.winner === "draw"
+      ? t.common.draw
+      : t.history.won(day.winner === "a" ? t.common.teamA : t.common.teamB);
+  return (
+    <Section title={t.match.result}>
+      <p
+        className={cn(
+          "text-[17px] font-medium first-letter:uppercase",
+          day.winner === "a" && "text-team-a",
+          day.winner === "b" && "text-team-b",
+        )}
+      >
+        {text + score}
+      </p>
+    </Section>
   );
 }
 

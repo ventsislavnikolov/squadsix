@@ -13,7 +13,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Proposal**: one of three candidate splits. Position 1 is Jev's first choice.
 - **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted.
 - **Lock**: ends voting. Anyone can lock, and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
-- **Result**: the winner (A, B or draw) is required, and the score is optional. It's entered after the lock.
+- **Result**: the winner (A, B or draw) is required, and the score is optional (a full score names the winner). Only the admin enters it, after the lock; everyone else sees it.
 
 ## Decisions (2026-09-26 grilling)
 
