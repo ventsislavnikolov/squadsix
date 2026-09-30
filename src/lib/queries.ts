@@ -3,6 +3,7 @@
 
 import { queryOptions } from "@tanstack/react-query";
 import {
+  getBalls,
   getFullRoster,
   getLog,
   getMatchday,
@@ -52,6 +53,12 @@ export const fullRosterQuery = queryOptions({
 export const logQuery = queryOptions({
   queryKey: ["log"],
   queryFn: () => getLog(),
+});
+
+/** Where the balls are: newest handover first. */
+export const ballsQuery = queryOptions({
+  queryKey: ["balls"],
+  queryFn: () => getBalls(),
 });
 
 export const venuesQuery = queryOptions({

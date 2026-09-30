@@ -729,3 +729,30 @@ export async function checkWhen(date: string, time: string) {
            ${date}::date - (now() at time zone 'Europe/Sofia')::date as days`;
   return { future: Boolean(row!.future), days: Number(row!.days) };
 }
+
+// ---------------------------------------------------------------------------------------
+// The balls: someone takes them home after each game.
+
+export type BallHandover = { playerId: string; since: string; setBy: string | null };
+
+/** Newest first: the first entry is where the balls are now. */
+export async function ballTrail(limit = 12): Promise<BallHandover[]> {
+  const rows = await sql`
+    select player_id, since::text, set_by from ball_holders order by since desc, id desc limit ${limit}`;
+  return rows.map((r) => ({
+    playerId: String(r.player_id),
+    since: String(r.since),
+    setBy: (r.set_by as string | null) ?? null,
+  }));
+}
+
+/** Hand the balls to someone. False when they already have them. */
+export async function passBalls(playerId: string, setBy: string | null): Promise<boolean> {
+  const rows = await sql`
+    insert into ball_holders (player_id, set_by)
+    select ${playerId}, ${setBy}
+    where ${playerId}::uuid is distinct from
+          (select player_id from ball_holders order by since desc, id desc limit 1)
+    returning id`;
+  return rows.length > 0;
+}

@@ -10,7 +10,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 const bg = {
   appTag: "отбори за ритане",
-  nav: { newMatch: "Нов мач", match: "Мач", venues: "Места", history: "История", players: "Играчи", log: "Лог", signIn: "Вход", signOut: "Изход" },
+  nav: { newMatch: "Нов мач", match: "Мач", venues: "Места", history: "История", balls: "Топки", players: "Играчи", log: "Лог", signIn: "Вход", signOut: "Изход" },
   theme: { system: "Системна", light: "Светла", dark: "Тъмна", label: "Тема" },
   lang: { label: "Език", other: "EN" },
   common: {
@@ -208,6 +208,19 @@ const bg = {
     cancelled: "отменен",
     signing: (n: number) => `записване · ${n}/12`,
   },
+  balls: {
+    eyebrow: "Топките",
+    title: (who: string) => `Топките са ${/^[вфВФ]/.test(who) ? "във" : "в"} ${who}.`,
+    lead: "След всеки мач някой ги взима. Който ги вземе, да го отбележи тук.",
+    since: (when: string) => `от ${when}`,
+    mine: "Взех ги аз",
+    youHave: "В теб са.",
+    gave: "Дадох ги на…",
+    pick: "Избери човек",
+    trail: "Кой ги е държал",
+    empty: "Още никой не ги е взел.",
+    unknown: "никого",
+  },
   login: {
     title: "Вход за админ",
     lead: "Само за този, който поддържа списъка и оценките.",
@@ -271,7 +284,7 @@ type Dict = typeof bg;
 
 const en: Dict = {
   appTag: "teams for the kickabout",
-  nav: { newMatch: "New game", match: "Game", venues: "Venues", history: "History", players: "Players", log: "Log", signIn: "Sign in", signOut: "Sign out" },
+  nav: { newMatch: "New game", match: "Game", venues: "Venues", history: "History", balls: "Balls", players: "Players", log: "Log", signIn: "Sign in", signOut: "Sign out" },
   theme: { system: "System", light: "Light", dark: "Dark", label: "Theme" },
   lang: { label: "Language", other: "БГ" },
   common: {
@@ -467,6 +480,19 @@ const en: Dict = {
     won: (team) => `${team} won`,
     cancelled: "cancelled",
     signing: (n) => `signing up · ${n}/12`,
+  },
+  balls: {
+    eyebrow: "The balls",
+    title: (who: string) => `${who} has the balls.`,
+    lead: "Someone takes them home after every game. Whoever takes them marks it here.",
+    since: (when: string) => `since ${when}`,
+    mine: "I took them",
+    youHave: "You have them.",
+    gave: "I gave them to…",
+    pick: "Pick someone",
+    trail: "Who had them",
+    empty: "Nobody has taken them yet.",
+    unknown: "nobody",
   },
   login: {
     title: "Admin sign-in",

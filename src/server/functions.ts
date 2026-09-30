@@ -91,6 +91,24 @@ export const getVenues = createServerFn({ method: "GET" }).handler(() =>
   repo.listVenues(isAdmin()),
 );
 
+export const getBalls = createServerFn({ method: "GET" }).handler(() => repo.ballTrail());
+
+/** "I have the balls now", or "I gave them to X". On trust, like the sign-up list. */
+export const passBalls = createServerFn({ method: "POST" })
+  .validator(z.object({ playerId: z.uuid(), actorId: z.uuid().nullable() }))
+  .handler(async ({ data }) => {
+    const admin = isAdmin();
+    const allowed = admin || data.actorId !== null;
+    const moved = allowed && (await repo.passBalls(data.playerId, data.actorId));
+    await logAction({
+      action: "balls.pass",
+      ok: allowed,
+      actor: data.actorId ? await repo.playerLabel(data.actorId) : admin ? "admin" : null,
+      detail: { to: await repo.playerLabel(data.playerId), moved },
+    });
+    if (!allowed) fail("who");
+  });
+
 export const addGuest = createServerFn({ method: "POST" })
   .validator(z.object({ name: z.string().trim().min(2).max(60) }))
   .handler(async ({ data }) => {

@@ -22,7 +22,8 @@ export type Action =
   | "vote.cast"
   | "admin.login"
   | "admin.logout"
-  | "admin.player.save";
+  | "admin.player.save"
+  | "balls.pass";
 
 export type LogEntry = {
   id: string;

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as BallsRouteImport } from './routes/balls'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NewRouteImport } from './routes/new'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BallsRoute = BallsRouteImport.update({
+  id: '/balls',
+  path: '/balls',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -86,6 +92,7 @@ const OgIdRoute = OgIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/balls': typeof BallsRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
   '/new': typeof NewRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/balls': typeof BallsRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
   '/new': typeof NewRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/balls': typeof BallsRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
   '/new': typeof NewRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/balls'
     | '/history'
     | '/login'
     | '/new'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/balls'
     | '/history'
     | '/login'
     | '/new'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/balls'
     | '/history'
     | '/login'
     | '/new'
@@ -172,6 +184,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  BallsRoute: typeof BallsRoute
   HistoryRoute: typeof HistoryRoute
   LoginRoute: typeof LoginRoute
   NewRoute: typeof NewRoute
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/balls': {
+      id: '/balls'
+      path: '/balls'
+      fullPath: '/balls'
+      preLoaderRoute: typeof BallsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -289,6 +309,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  BallsRoute: BallsRoute,
   HistoryRoute: HistoryRoute,
   LoginRoute: LoginRoute,
   NewRoute: NewRoute,

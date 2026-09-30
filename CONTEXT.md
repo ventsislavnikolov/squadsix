@@ -14,6 +14,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted.
 - **Lock**: ends voting. Anyone can lock, and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
 - **Result**: the winner (A, B or draw) is required, and the score is optional (a full score names the winner). Only the admin enters it, after the lock; everyone else sees it.
+- **Balls**: someone takes the balls home after each game. The "Топки" tab shows who has them and who had them before. Anyone who has picked their name can say "I took them"; the holder or the admin can hand them to someone. On trust, like the sign-up list, and logged.
 
 ## Decisions (2026-09-26 grilling)
 

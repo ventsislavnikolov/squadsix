@@ -79,6 +79,9 @@ function Nav() {
           <Link to="/history" activeProps={active} className={link}>
             {t.nav.history}
           </Link>
+          <Link to="/balls" activeProps={active} className={link}>
+            {t.nav.balls}
+          </Link>
           {isAdmin && (
             <Link to="/admin" activeOptions={{ exact: true }} activeProps={active} className={link}>
               {t.nav.players}
