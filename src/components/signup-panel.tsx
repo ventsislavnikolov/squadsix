@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { SQUAD_SIZE } from "@/domain/balance";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
+import { shareUrl } from "@/lib/preview";
 import { pickListQuery } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
@@ -145,7 +146,7 @@ export function AnnounceShare({ day, byId }: { day: MatchdayView; byId: Map<stri
           day.venue?.name ?? "",
           lines.slice(0, SQUAD_SIZE).join("\n"),
           lines.slice(SQUAD_SIZE).join("\n"),
-          window.location.href,
+          shareUrl(day),
         );
         if ((await shareText(text)) === "copied") {
           setCopied(true);

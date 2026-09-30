@@ -91,3 +91,19 @@ export function matchPreview(day: MatchdayView): Preview {
     tone: full ? "full" : "open",
   };
 }
+
+/** Changes whenever the preview would: list size, teams, lock, result, cancel. */
+export function previewVersion(day: MatchdayView): string {
+  const state = day.cancelledAt ? "x" : day.winner ? `r${day.winner}` : day.lockedAt ? "l" : day.proposals.length ? "t" : "";
+  return `${day.signups.length}${state}`;
+}
+
+/**
+ * The link to paste into Messenger. Messenger remembers a preview per exact URL, so a
+ * link shared before the list moved would keep showing the old picture; the version in
+ * the query makes each new state a new URL.
+ */
+export function shareUrl(day: MatchdayView): string {
+  const origin = typeof window === "undefined" ? SITE : window.location.origin;
+  return `${origin}/match/${day.id}?v=${previewVersion(day)}`;
+}

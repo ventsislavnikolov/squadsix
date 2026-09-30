@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { WhoAmI } from "@/components/who-am-i";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
-import { matchPreview, SITE } from "@/lib/preview";
+import { matchPreview, previewVersion, SITE, shareUrl } from "@/lib/preview";
 import { matchdayQuery, pickListQuery } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
@@ -35,13 +35,12 @@ export const Route = createFileRoute("/match/$id")({
       context.queryClient.ensureQueryData(pickListQuery),
     ]);
     if (!day) throw notFound();
-    return { preview: matchPreview(day), version: `${day.signups.length}-${day.proposals.length}-${day.lockedAt ?? ""}-${day.winner ?? ""}` };
+    return { preview: matchPreview(day), version: previewVersion(day) };
   },
   // What Messenger shows when the link is pasted into the group.
   head: ({ loaderData, params }) => {
     if (!loaderData) return {};
     const { preview: p, version } = loaderData;
-    const url = `${SITE}/match/${params.id}`;
     // A new version in the query makes Messenger fetch a fresh picture once the list moves.
     const image = `${SITE}/og/${params.id}?v=${encodeURIComponent(version)}`;
     return {
@@ -51,7 +50,8 @@ export const Route = createFileRoute("/match/$id")({
         { property: "og:type", content: "website" },
         { property: "og:site_name", content: "Squad Six" },
         { property: "og:locale", content: "bg_BG" },
-        { property: "og:url", content: url },
+        // No og:url: Facebook would treat it as the canonical link and reuse that link's
+        // cached preview for every ?v= we share.
         { property: "og:title", content: p.title },
         { property: "og:description", content: p.description },
         { property: "og:image", content: image },
@@ -397,7 +397,7 @@ function ShareButton({
       onClick={async () => {
         const when = day.startsAt ? t.when(day.startsAt) : t.date(day.playedOn);
         const text = t.match.shareText(when, list(teams.teamA), list(teams.teamB));
-        if ((await shareText(`${text}\n\n${window.location.href}`)) === "copied") {
+        if ((await shareText(`${text}\n\n${shareUrl(day)}`)) === "copied") {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }
