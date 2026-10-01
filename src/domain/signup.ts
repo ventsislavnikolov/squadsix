@@ -1,10 +1,10 @@
 // Who plays and who waits.
 //
-// A sign-up list orders itself: the first twelve play, the rest are reserves. Office
-// regulars go ahead of guests — until 24 hours before kick-off. From then on nobody is
-// pushed out any more: whoever signs up joins the back of the queue, guest or not, and a
-// guest already in stays in. That keeps "guests only when we're short" without anyone
-// dropping out on the evening itself.
+// A sign-up list orders itself: the first twelve play, the rest are reserves. Guests can
+// only be put on the list in the last 24 hours before kick-off, when it's clear the
+// office is short. From then on whoever signs up joins the back of the queue, guest or
+// not, and nobody already in is pushed out. (A guest added before this rule existed sits
+// behind the regulars until the 24-hour mark, then stays.)
 
 import { SQUAD_SIZE } from "./balance";
 
@@ -70,6 +70,16 @@ export function patchLockedTeams(
     (teamA.length <= teamB.length ? teamA : teamB).push(id);
   }
   return { teamA, teamB, changed };
+}
+
+/** Guests can be signed up from 24 hours before kick-off. A quick game has no kick-off. */
+export function guestsOpenAt(startsAt: string | null): number | null {
+  return startsAt ? Date.parse(startsAt) - GUEST_PRIORITY_CUTOFF_H * 3_600_000 : null;
+}
+
+export function guestsOpen(startsAt: string | null, now = Date.now()): boolean {
+  const at = guestsOpenAt(startsAt);
+  return at === null || now >= at;
 }
 
 export function teamsDue(startsAt: string, now = Date.now()): boolean {

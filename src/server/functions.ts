@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
-import { hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
+import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
 import type { Lang } from "@/domain/names";
 import { checkCredentials, endSession, isAdmin, requireAdmin, startSession } from "./auth";
 import { balanceWithJev } from "./jev-harness";
@@ -30,6 +30,7 @@ export type ErrorCode =
   | "not-allowed"
   | "not-full"
   | "bad-date"
+  | "guest-early"
   | "who";
 
 function fail(code: ErrorCode): never {
@@ -261,11 +262,19 @@ export const signUp = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const info = await repo.matchInfo(data.matchdayId);
     if (!info) fail("not-found");
+    // Guests only in the last 24 hours before an announced game; the admin can still add one.
+    const tooEarlyForGuest =
+      info.kind === "announced" &&
+      !guestsOpen(info.startsAt) &&
+      !isAdmin() &&
+      (await repo.isGuest(data.playerId));
     const refusal: ErrorCode | null = info.cancelled
       ? "cancelled"
       : hasStarted(info.startsAt) && info.kind === "announced"
         ? "started"
-        : null;
+        : tooEarlyForGuest
+          ? "guest-early"
+          : null;
     const added = refusal ? false : await repo.signUp(data.matchdayId, data.playerId, data.actorId);
     await logAction({
       action: "signup.add",

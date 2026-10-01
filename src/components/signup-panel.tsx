@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SQUAD_SIZE } from "@/domain/balance";
-import { hasStarted } from "@/domain/signup";
+import { guestsOpen, guestsOpenAt, hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
 import { shareUrl } from "@/lib/preview";
 import { ballsQuery, pickListQuery } from "@/lib/queries";
@@ -320,13 +320,16 @@ export function SignupPanel({ day, byId }: { day: MatchdayView; byId: Map<string
 
 /** Sign up someone else — from the list, or a guest typed in. */
 function AddOther({ day, onDone }: { day: MatchdayView; onDone: () => unknown }) {
-  const { t, name, error } = useI18n();
+  const { t, name, error, isAdmin } = useI18n();
   const [me] = useMe();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [guest, setGuest] = useState("");
   const { data: roster = [] } = useQuery(pickListQuery);
   const onList = new Set(day.signups.map((s) => s.playerId));
+  // Guests only in the last 24 hours before an announced game (the server checks too).
+  const guestsFrom = day.kind === "announced" ? guestsOpenAt(day.startsAt) : null;
+  const guestsAllowed = isAdmin || day.kind !== "announced" || guestsOpen(day.startsAt);
 
   const add = useMutation({
     mutationFn: async (target: { playerId: string } | { guest: string }) => {
@@ -346,6 +349,7 @@ function AddOther({ day, onDone }: { day: MatchdayView; onDone: () => unknown })
   const candidates = roster.filter(
     (p) =>
       !onList.has(p.id) &&
+      (guestsAllowed || !p.isGuest) &&
       (!q || p.name.bg.toLocaleLowerCase().includes(q) || p.name.en.toLowerCase().includes(q)),
   );
 
@@ -375,8 +379,13 @@ function AddOther({ day, onDone }: { day: MatchdayView; onDone: () => unknown })
             </Button>
           ))}
         </div>
+        {!guestsAllowed && guestsFrom !== null && (
+          <p className="border-t border-fg/[0.08] pt-4 text-[13px] text-fg/55">
+            {t.signup.guestsLater(t.when(new Date(guestsFrom).toISOString()))}
+          </p>
+        )}
         <form
-          className="flex gap-2 border-t border-fg/[0.08] pt-4"
+          className={cn("flex gap-2 border-t border-fg/[0.08] pt-4", !guestsAllowed && "hidden")}
           onSubmit={(e) => {
             e.preventDefault();
             if (guest.trim().length >= 2) add.mutate({ guest: guest.trim() });

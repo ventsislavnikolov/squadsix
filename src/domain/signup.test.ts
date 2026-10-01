@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "./signup";
+import { guestsOpen, hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "./signup";
 
 const kickoff = "2026-09-29T17:00:00.000Z"; // Tuesday 20:00 in Sofia
 const hoursBefore = (h: number) => new Date(Date.parse(kickoff) - h * 3_600_000).toISOString();
@@ -78,5 +78,13 @@ describe("timing", () => {
     expect(hasStarted(kickoff, Date.parse(hoursBefore(0.1)))).toBe(false);
     expect(hasStarted(kickoff, Date.parse(kickoff))).toBe(true);
     expect(hasStarted(null)).toBe(false);
+  });
+
+  it("lets guests sign up only in the last 24 hours before kick-off", () => {
+    expect(guestsOpen(kickoff, Date.parse(hoursBefore(25)))).toBe(false);
+    expect(guestsOpen(kickoff, Date.parse(hoursBefore(24)))).toBe(true);
+    expect(guestsOpen(kickoff, Date.parse(hoursBefore(1)))).toBe(true);
+    // A quick game has no kick-off time, so no waiting.
+    expect(guestsOpen(null)).toBe(true);
   });
 });

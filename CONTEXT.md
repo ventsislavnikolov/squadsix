@@ -39,7 +39,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 
 - **Announcement**: day, time and place, plus an optional note. Anyone can announce, on trust, as the name picked on their phone. It can be at most 14 days ahead and never in the past. Only one game can be open at a time.
 - **Venue**: a name and an optional Google Maps link. Anyone can add one while announcing; the admin edits or hides venues at /admin/venues.
-- **Sign-up list**: the first 12 play and the rest are reserves. Office regulars go ahead of guests until 24 hours before kick-off; after that nobody is pushed out (`src/domain/signup.ts`).
+- **Sign-up list**: the first 12 play and the rest are reserves. Guests can only be signed up in the last 24 hours before kick-off of an announced game (the admin can add one earlier; quick games have no such limit). From then on whoever signs up joins the back of the queue and nobody is pushed out (`src/domain/signup.ts`).
 - **Adding and removing**: you can sign up yourself, another player, or a guest, and the list shows who added whom. A name can be removed by the player, by whoever added them, or by the admin.
 - **Teams**: "Make teams" appears once 12 are in. If nobody presses it, the app makes them itself 2 hours before kick-off.
 - **Dropouts**: before the lock, a reserve comes in, the teams are remade and the votes are cleared; these automatic re-dos don't use up the 3 tries. After the lock, the reserve takes the leaver's exact place. With no reserve, the page says "N more needed".

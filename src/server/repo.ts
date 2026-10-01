@@ -137,6 +137,11 @@ export async function savePlayer(p: PlayerInput): Promise<{ id: string }> {
 }
 
 /** "Иво Иванов" — for the activity log, which only the admin reads. */
+export async function isGuest(id: string): Promise<boolean> {
+  const [row] = await sql`select is_guest from players where id = ${id}`;
+  return Boolean(row?.is_guest);
+}
+
 export async function playerLabel(id: string): Promise<string> {
   const [row] = await sql`select first_bg, last_bg from players where id = ${id}`;
   return row ? `${row.first_bg} ${row.last_bg}`.trim() : id;
