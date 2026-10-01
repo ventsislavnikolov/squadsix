@@ -12,7 +12,6 @@ insert into players (first_bg, last_bg, first_en, last_en) values
   ('Кристиан',  'Борисов',     'Kristian',  'Borisov'),
   ('Николай',   'Чилингиров',  'Nikolay',   'Chilingirov'),
   ('Орлин',     'Бенов',       'Orlin',     'Benov'),
-  ('Павел',     'Чакъров',     'Pavel',     'Chakarov'),
   ('Петър',     'Николов',     'Peter',     'Nikolov'),
   ('Пресиян',   'Тодоров',     'Presiyan',  'Todorov'),
   ('Симеон',    'Бойчев',      'Simeon',    'Boychev'),
@@ -27,4 +26,5 @@ insert into players (first_bg, last_bg, first_en, last_en) values
   ('Ивайло',    'Петков',      'Ivaylo',    'Petkov'),
   ('Момчил',    'Върбанов',    'Momchil',   'Varbanov'),
   ('Радослав',  'Симеонов',    'Radoslav',  'Simeonov'),
-  ('Теодор',    'Костадинов',  'Teodor',    'Kostadinov');
+  ('Теодор',    'Костадинов',  'Teodor',    'Kostadinov'),
+  ('Александър','Иванов',      'Aleksandar','Ivanov');
