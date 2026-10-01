@@ -21,7 +21,7 @@ import { WhoAmI } from "@/components/who-am-i";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
 import { matchPreview, previewVersion, SITE, shareUrl } from "@/lib/preview";
-import { matchdayQuery, pickListQuery } from "@/lib/queries";
+import { ballsQuery, matchdayQuery, pickListQuery } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,7 @@ export const Route = createFileRoute("/match/$id")({
     const [day] = await Promise.all([
       context.queryClient.ensureQueryData(matchdayQuery(params.id)),
       context.queryClient.ensureQueryData(pickListQuery),
+      context.queryClient.ensureQueryData(ballsQuery),
     ]);
     if (!day) throw notFound();
     return { preview: matchPreview(day), version: previewVersion(day) };

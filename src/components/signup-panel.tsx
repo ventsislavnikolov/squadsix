@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   Ban,
+  CircleDotIcon,
   LoaderIcon,
   MapPinIcon,
   PencilIcon,
@@ -26,7 +27,7 @@ import { SQUAD_SIZE } from "@/domain/balance";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
 import { shareUrl } from "@/lib/preview";
-import { pickListQuery } from "@/lib/queries";
+import { ballsQuery, pickListQuery } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,11 @@ function useRefresh(id: string) {
 export function EventInfo({ day, byId }: { day: MatchdayView; byId: Map<string, RosterPlayer> }) {
   const { t, name } = useI18n();
   const creator = day.createdBy ? byId.get(day.createdBy) : undefined;
+  // Whoever has the balls has to bring them; they may not be on this game's list.
+  const { data: trail = [] } = useQuery(ballsQuery);
+  const { data: everyone = [] } = useQuery(pickListQuery);
+  const holderId = trail[0]?.playerId;
+  const holder = holderId ? (byId.get(holderId) ?? everyone.find((p) => p.id === holderId)) : undefined;
   return (
     <div className="space-y-3">
       {day.venue && (
@@ -72,6 +78,14 @@ export function EventInfo({ day, byId }: { day: MatchdayView; byId: Map<string, 
           {day.changes
             .map((c) => `${t.event.field[c.field]} ${c.from || "—"} → ${c.to || "—"}`)
             .join(" · ")}
+        </p>
+      )}
+      {holder && !day.cancelledAt && (
+        <p className="flex items-center gap-3 text-[14px]">
+          <CircleDotIcon className="size-4 text-primary" />
+          <Link to="/balls" className="underline-offset-4 hover:underline">
+            {t.balls.title(name(holder.name))}
+          </Link>
         </p>
       )}
       {creator && day.kind === "announced" && (
