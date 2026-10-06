@@ -11,8 +11,8 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Hidden**: can't be picked, but stays in old games. Players are hidden, never deleted.
 - **Matchday**: one game day. There's at most one per calendar day (Sofia time), always with exactly 12 players.
 - **Proposal**: one of three candidate splits. Position 1 is Jev's first choice.
-- **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted.
-- **Lock**: ends voting. Anyone can lock, and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
+- **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted. Only the admin can ask for a new run.
+- **Lock**: ends voting. Only the admin can lock early (the game also locks itself at kick-off), and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
 - **Result**: the winner (A, B or draw) is required, and the score is optional (a full score names the winner). Only the admin enters it, after the lock; everyone else sees it.
 - **Balls**: someone takes the balls home after each game. The "Топки" tab shows who has them and who had them before. Anyone who has picked their name can say "I took them"; the holder or the admin can hand them to someone. On trust, like the sign-up list, and logged.
 
@@ -21,14 +21,14 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 1. The roster is the 26 people in the Messenger group. BG and EN names are stored; the site is bilingual and BG is the default.
 2. Ratings are given by the admin alone and are visible only to the admin. Other people see only the gap between teams and Jev's verdict, never the team totals.
 3. Admin credentials live in Vercel env: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (scrypt) and `SESSION_SECRET`. There's no player login; a voter picks their name from the 12, on trust.
-4. Anyone can create a game, vote (only the 12 playing) and lock. These guards apply:
+4. Anyone can create a game and vote (only the 12 playing). Since 2026-10-06 only the admin can lock, ask for new options, edit or cancel. These guards apply:
    - no new game while any game is still open (unlocked), whatever day it was made; "/" redirects to it
    - one game a day
    - new options only while there are 0 votes
    - Jev runs at most 3 times per game
    - locked games are frozen
 5. There's an activity log of every action, refusals included, with IP and user agent. It's kept for 90 days and is admin-only.
-6. After the lock, the teams can be shared to Messenger (share sheet or clipboard).
+6. Anyone can share to Messenger (share sheet or clipboard): the announcement before the lock, the teams after it.
 7. There are no goalkeepers or positions. It's always 12 players; odd numbers and other sizes are out of scope.
 8. Jev's trace ("How Jev decided") is shown only to the admin; the "decided by" model line is gone.
    Confirmations use an in-app dialog, never the browser's confirm().
@@ -44,7 +44,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Teams**: "Make teams" appears once 12 are in. If nobody presses it, the app makes them itself 2 hours before kick-off.
 - **Dropouts**: before the lock, a reserve comes in, the teams are remade and the votes are cleared; these automatic re-dos don't use up the 3 tries. After the lock, the reserve takes the leaver's exact place. With no reserve, the page says "N more needed".
 - **Kick-off**: sign-up and voting close, the game locks itself, and the result can be entered. A game without 12 players never locks itself.
-- **Edit and cancel**: whoever announced the game, or the admin, can do either. The page shows what changed. A cancelled game stays in the history and frees its day.
+- **Edit and cancel**: only the admin can do either (until 2026-10-06 the announcer could too). The page shows what changed. A cancelled game stays in the history and frees its day.
 - **Quick pick**: still available when nothing is announced. Time and place are optional and pre-filled, and it never acts on its own.
 - **No scheduler**: Vercel cron needs a paid plan, so the time-based steps run whenever someone opens the app (`repo.dueNow`, called from `getOpenMatch` and `getMatchday`).
 - **Players** keep their real names; there are no nicknames.

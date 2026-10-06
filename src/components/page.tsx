@@ -7,34 +7,45 @@ export const PANE = "mx-auto w-full max-w-[1180px] px-4 sm:px-8";
 
 export function PageHead({
   eyebrow,
+  aside,
   title,
   lead,
   actions,
 }: {
   eyebrow?: string;
+  /** Sits on the eyebrow's line, at the right edge. */
+  aside?: React.ReactNode;
   title: React.ReactNode;
   lead?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-6 border-b border-fg/[0.06] pb-8">
-      <div className="min-w-0">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1
-          className={cn(
-            "text-[1.9rem] font-semibold leading-[1.12] tracking-[-0.02em]",
-            eyebrow && "mt-3",
+    <header className="border-b border-fg/[0.06] pb-8">
+      {aside && (
+        <div className="flex items-center justify-between gap-4">
+          {eyebrow ? <p className="eyebrow min-w-0">{eyebrow}</p> : <span />}
+          <div className="shrink-0">{aside}</div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <div className="min-w-0">
+          {eyebrow && !aside && <p className="eyebrow">{eyebrow}</p>}
+          <h1
+            className={cn(
+              "text-[1.9rem] font-semibold leading-[1.12] tracking-[-0.02em]",
+              eyebrow && "mt-3",
+            )}
+          >
+            {title}
+          </h1>
+          {lead && (
+            <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-fg/55">
+              {lead}
+            </div>
           )}
-        >
-          {title}
-        </h1>
-        {lead && (
-          <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-fg/55">
-            {lead}
-          </div>
-        )}
+        </div>
+        {actions && <div className="flex shrink-0 flex-wrap gap-2.5">{actions}</div>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap gap-2.5">{actions}</div>}
     </header>
   );
 }

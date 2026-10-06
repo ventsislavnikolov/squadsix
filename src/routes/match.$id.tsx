@@ -154,49 +154,56 @@ function MatchPage() {
                 ? t.match.leadOpen
                 : undefined
         }
+        aside={
+          cancelled ? undefined : locked ? (
+            chosen && <ShareButton day={day} teams={chosen} byId={byId} />
+          ) : (
+            <AnnounceShare day={day} byId={byId} />
+          )
+        }
         actions={
-          <>
-            {!cancelled && !locked && hasTeams && (
-              <Button
-                variant="outline"
-                disabled={!canRebalance || again.isPending}
-                title={
-                  day.votes.length > 0 ? t.match.againBlockedVotes : t.match.againHint(runsLeft)
-                }
-                onClick={() => again.mutate()}
-              >
-                {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-                {t.match.again}
-                <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
-              </Button>
-            )}
-            {!cancelled && !locked && leader && day.squad.length === 12 && (
-              <ConfirmButton
-                disabled={doLock.isPending}
-                title={t.match.lockTitle}
-                description={t.match.lockBody(leader.position, (votersOf.get(leader.id) ?? []).length)}
-                confirmLabel={t.match.lock}
-                onConfirm={() => doLock.mutate()}
-              >
-                <LockIcon /> {t.match.lock}
-              </ConfirmButton>
-            )}
-            {!cancelled && !locked && <AnnounceShare day={day} byId={byId} />}
-            {!cancelled && locked && chosen && <ShareButton day={day} teams={chosen} byId={byId} />}
-            {locked && isAdmin && !cancelled && (
-              <ConfirmButton
-                variant="ghost"
-                disabled={doUnlock.isPending}
-                title={t.match.unlockTitle}
-                description={t.match.unlockBody}
-                confirmLabel={t.match.unlock}
-                onConfirm={() => doUnlock.mutate()}
-              >
-                <LockOpenIcon /> {t.match.unlock}
-              </ConfirmButton>
-            )}
-            <OwnerActions day={day} />
-          </>
+          isAdmin && (
+            <>
+              {!cancelled && !locked && hasTeams && (
+                <Button
+                  variant="outline"
+                  disabled={!canRebalance || again.isPending}
+                  title={
+                    day.votes.length > 0 ? t.match.againBlockedVotes : t.match.againHint(runsLeft)
+                  }
+                  onClick={() => again.mutate()}
+                >
+                  {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+                  {t.match.again}
+                  <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
+                </Button>
+              )}
+              {!cancelled && !locked && leader && day.squad.length === 12 && (
+                <ConfirmButton
+                  disabled={doLock.isPending}
+                  title={t.match.lockTitle}
+                  description={t.match.lockBody(leader.position, (votersOf.get(leader.id) ?? []).length)}
+                  confirmLabel={t.match.lock}
+                  onConfirm={() => doLock.mutate()}
+                >
+                  <LockIcon /> {t.match.lock}
+                </ConfirmButton>
+              )}
+              {locked && !cancelled && (
+                <ConfirmButton
+                  variant="ghost"
+                  disabled={doUnlock.isPending}
+                  title={t.match.unlockTitle}
+                  description={t.match.unlockBody}
+                  confirmLabel={t.match.unlock}
+                  onConfirm={() => doUnlock.mutate()}
+                >
+                  <LockOpenIcon /> {t.match.unlock}
+                </ConfirmButton>
+              )}
+              <OwnerActions day={day} />
+            </>
+          )
         }
       />
 

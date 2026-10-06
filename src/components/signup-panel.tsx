@@ -95,7 +95,7 @@ export function EventInfo({ day, byId }: { day: MatchdayView; byId: Map<string, 
   );
 }
 
-/** Edit and cancel — for whoever announced the game, and the admin. */
+/** Edit and cancel. The server lets whoever announced the game do both; the buttons are admin-only. */
 export function OwnerActions({ day }: { day: MatchdayView }) {
   const { t, error, isAdmin } = useI18n();
   const [me] = useMe();
@@ -107,8 +107,7 @@ export function OwnerActions({ day }: { day: MatchdayView }) {
     onSuccess: refresh,
   });
 
-  const mine = isAdmin || (!!me && day.createdBy === me);
-  if (!mine || day.cancelledAt) return null;
+  if (!isAdmin || day.cancelledAt) return null;
   const editable = !day.lockedAt && !hasStarted(day.startsAt) && day.kind === "announced";
 
   return (

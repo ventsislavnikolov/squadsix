@@ -203,12 +203,12 @@ export const quickCreate = createServerFn({ method: "POST" })
     return { id };
   });
 
-/** Who may change or cancel a game: whoever announced it, or the admin. */
-async function requireOwner(id: string, actorId: string | null) {
+/** Only the admin may change or cancel a game. */
+async function requireOpenAsAdmin(id: string) {
+  if (!isAdmin()) fail("admin-only");
   const info = await repo.matchInfo(id);
   if (!info) fail("not-found");
   if (info.cancelled) fail("cancelled");
-  if (!isAdmin() && (!actorId || info.createdBy !== actorId)) fail("not-allowed");
   return info;
 }
 
@@ -224,7 +224,7 @@ export const editMatch = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const info = await requireOwner(data.id, data.actorId);
+    const info = await requireOpenAsAdmin(data.id);
     if (info.locked || hasStarted(info.startsAt)) fail("started");
     await checkWhen(data.date, data.time);
     const changes = await repo.editMatch(data.id, {
@@ -246,7 +246,7 @@ export const cancelMatch = createServerFn({ method: "POST" })
     z.object({ id: z.uuid(), actorId: z.uuid().nullable(), reason: z.string().trim().max(200).nullable() }),
   )
   .handler(async ({ data }) => {
-    await requireOwner(data.id, data.actorId);
+    await requireOpenAsAdmin(data.id);
     await repo.cancelMatch(data.id, data.reason || null);
     await logAction({
       action: "matchday.cancel",
@@ -343,23 +343,25 @@ export const makeTeams = createServerFn({ method: "POST" })
     await runBalance(data.id, "manual");
   });
 
-/** Ask Jev again. Only before anyone has voted, only while open, at most three runs. */
+/** Ask Jev again. Admin only, before anyone has voted, while open, at most three runs. */
 export const rebalance = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const state = await repo.matchInfo(data.id);
     if (!state) fail("not-found");
-    const refusal: ErrorCode | null = state.cancelled
-      ? "cancelled"
-      : state.locked
-        ? "locked"
-        : state.squad !== SQUAD_SIZE
-          ? "not-full"
-          : state.votes > 0
-            ? "has-votes"
-            : state.runs >= repo.MAX_RUNS_PER_MATCHDAY
-              ? "run-limit"
-              : null;
+    const refusal: ErrorCode | null = !isAdmin()
+      ? "admin-only"
+      : state.cancelled
+        ? "cancelled"
+        : state.locked
+          ? "locked"
+          : state.squad !== SQUAD_SIZE
+            ? "not-full"
+            : state.votes > 0
+              ? "has-votes"
+              : state.runs >= repo.MAX_RUNS_PER_MATCHDAY
+                ? "run-limit"
+                : null;
     if (refusal) {
       await logAction({ action: "balance.run", ok: false, matchdayId: data.id, detail: { refusal } });
       fail(refusal);
@@ -384,13 +386,15 @@ export const vote = createServerFn({ method: "POST" })
 export const lock = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
-    const chosen = await repo.lockMatchday(data.id);
+    const admin = isAdmin();
+    const chosen = admin ? await repo.lockMatchday(data.id) : null;
     await logAction({
       action: "matchday.lock",
       ok: chosen !== null,
       matchdayId: data.id,
       detail: { proposalId: chosen },
     });
+    if (!admin) fail("admin-only");
     if (!chosen) fail("locked");
   });
 
