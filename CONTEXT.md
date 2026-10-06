@@ -18,7 +18,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 
 ## Decisions (2026-09-26 grilling)
 
-1. The roster is the 27 people in the Messenger group. BG and EN names are stored; the site is bilingual and BG is the default.
+1. The roster is the 26 people in the Messenger group. BG and EN names are stored; the site is bilingual and BG is the default.
 2. Ratings are given by the admin alone and are visible only to the admin. Other people see only the gap between teams and Jev's verdict, never the team totals.
 3. Admin credentials live in Vercel env: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (scrypt) and `SESSION_SECRET`. There's no player login; a voter picks their name from the 12, on trust.
 4. Anyone can create a game, vote (only the 12 playing) and lock. These guards apply:

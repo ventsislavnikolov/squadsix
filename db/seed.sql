@@ -8,7 +8,6 @@ insert into players (first_bg, last_bg, first_en, last_en) values
   ('Илиян',     'Нинов',       'Iliyan',    'Ninov'),
   ('Ивайло',    'Вълчев',      'Ivaylo',    'Valchev'),
   ('Иво',       'Иванов',      'Ivo',       'Ivanov'),
-  ('Кирил',     'Петров',      'Kiril',     'Petrov'),
   ('Кристиан',  'Борисов',     'Kristian',  'Borisov'),
   ('Николай',   'Чилингиров',  'Nikolay',   'Chilingirov'),
   ('Орлин',     'Бенов',       'Orlin',     'Benov'),
