@@ -15,15 +15,15 @@ harness in `src/server/jev-harness.ts` splits the work:
 4. **decide** (code): rank on those answers, keep the top three
 
 Every step is stored and shown under "Как реши Jev" on the match page. Jev is reached
-through TypeSafe (`TYPESAFE_API_KEY`) or OpenRouter (`OPENROUTER_API_KEY`, model
-`~typesafe/jev-latest`). Without either, the app uses arithmetic only and says so.
+through OpenRouter (`OPENROUTER_API_KEY`, model `~typesafe/jev-latest`). Without the key,
+the app uses arithmetic only and says so.
 
 Ratings are admin-only. Rules and vocabulary: see `CONTEXT.md`.
 
 ## Stack
 
 TanStack Start (Router + server functions) · TanStack Query · TanStack Form · TanStack AI
-(`decide()` + `@tanstack/ai-typesafe`) · Neon Postgres · Tailwind v4 + shadcn/ui (`radix-rhea`
+(`decide()` + `@tanstack/ai-openrouter`) · Neon Postgres · Tailwind v4 + shadcn/ui (`radix-rhea`
 preset), Outfit + Onest · deployed on Vercel (Nitro).
 
 ## Run
