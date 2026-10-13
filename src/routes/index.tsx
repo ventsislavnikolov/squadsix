@@ -1,26 +1,37 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { CalendarPlusIcon, ListChecksIcon } from "lucide-react";
 import { PageHead, PANE } from "@/components/page";
+import { Bone, MatchSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { matchdaysQuery, openMatchQuery } from "@/lib/queries";
+import { matchdaysQuery, openMatchQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
-  // While a game is open (announced, signing up, voting), "/" is that game.
-  beforeLoad: async ({ context }) => {
-    const open = await context.queryClient.fetchQuery(openMatchQuery);
-    if (open.id) throw redirect({ to: "/match/$id", params: { id: open.id } });
+  // While a game is open (announced, signing up, voting), "/" is that game. If we already
+  // know of one, go now; otherwise paint first and let the page find out (see Start).
+  beforeLoad: ({ context }) => {
+    const open = context.queryClient.getQueryData(openMatchQuery.queryKey);
+    if (open?.id) throw redirect({ to: "/match/$id", params: { id: open.id } });
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(matchdaysQuery),
+  loader: ({ context }) => warm(context.queryClient, matchdaysQuery),
   component: Start,
+  pendingComponent: MatchSkeleton,
 });
 
 /** Nothing planned: announce a game, or tick twelve on the spot. */
 function Start() {
   const { t } = useI18n();
-  const { data: days } = useSuspenseQuery(matchdaysQuery);
-  const last = days.find((d) => !d.cancelled);
+  const { data: open } = useSuspenseQuery(openMatchQuery);
+  if (open.id) {
+    return (
+      <>
+        <Navigate to="/match/$id" params={{ id: open.id }} replace />
+        <MatchSkeleton />
+      </>
+    );
+  }
 
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
@@ -30,11 +41,9 @@ function Start() {
         lead={
           <>
             {t.start.lead}
-            {last && (
-              <span className="mt-1 block text-fg/45">
-                {t.start.last(last.startsAt ? t.when(last.startsAt) : t.date(last.playedOn))}
-              </span>
-            )}
+            <Suspense fallback={<Bone className="mt-2.5 h-3.5 w-56" />}>
+              <LastGame />
+            </Suspense>
           </>
         }
       />
@@ -54,6 +63,19 @@ function Start() {
         />
       </div>
     </div>
+  );
+}
+
+/** The one line on this page that needs the database. */
+function LastGame() {
+  const { t } = useI18n();
+  const { data: days } = useSuspenseQuery(matchdaysQuery);
+  const last = days.find((d) => !d.cancelled);
+  if (!last) return null;
+  return (
+    <span className="mt-1 block text-fg/45">
+      {t.start.last(last.startsAt ? t.when(last.startsAt) : t.date(last.playedOn))}
+    </span>
   );
 }
 

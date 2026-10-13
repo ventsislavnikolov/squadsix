@@ -2,21 +2,19 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute } from "@tanstack/react-router";
 import { HandIcon } from "lucide-react";
 import { Empty, PageHead, PANE, Section } from "@/components/page";
+import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WhoAmI } from "@/components/who-am-i";
 import { useI18n } from "@/lib/i18n";
-import { ballsQuery, pickListQuery } from "@/lib/queries";
+import { ballsQuery, pickListQuery, warm } from "@/lib/queries";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
 import { passBalls } from "@/server/functions";
 
 export const Route = createFileRoute("/balls")({
-  loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(ballsQuery),
-      context.queryClient.ensureQueryData(pickListQuery),
-    ]),
+  loader: ({ context }) => warm(context.queryClient, ballsQuery, pickListQuery),
+  pendingComponent: ListSkeleton,
   component: Balls,
 });
 

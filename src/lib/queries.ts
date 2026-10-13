@@ -1,7 +1,8 @@
-// TanStack Query options for every read. Routes prefetch these in their loaders; components
-// read them with useSuspenseQuery, so a page never renders half-loaded.
+// TanStack Query options for every read. Routes start these in their loaders without
+// waiting (`warm`); components read them with useSuspenseQuery, so the page shows its
+// skeleton at once and never renders half-loaded.
 
-import { queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import {
   getBalls,
   getFullRoster,
@@ -13,6 +14,11 @@ import {
   getSession,
   getVenues,
 } from "@/server/functions";
+
+/** Start reads without waiting for them; whoever renders them suspends until they land. */
+export function warm(qc: QueryClient, ...queries: { queryKey: readonly unknown[] }[]) {
+  for (const q of queries) void qc.ensureQueryData(q as never).catch(() => {});
+}
 
 /** Language and whether the admin is signed in. Changes only on explicit action. */
 export const sessionQuery = queryOptions({

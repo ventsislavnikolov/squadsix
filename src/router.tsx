@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { ListSkeleton } from "./components/skeletons";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
@@ -14,6 +15,7 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    defaultPendingComponent: ListSkeleton,
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient });

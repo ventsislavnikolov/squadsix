@@ -1,7 +1,8 @@
 // What a link to a game says when pasted into Messenger: the page title, the line under
-// it and the picture. Link crawlers carry no cookie, so this is always in Bulgarian —
-// the group's language.
+// it and the picture. Link crawlers carry no cookie, so they always get Bulgarian —
+// the group's language. Someone browsing in English gets the title in English.
 
+import type { Lang } from "@/domain/names";
 import type { MatchdayView } from "@/server/repo";
 
 // Our own domain: Facebook refuses to fetch *.vercel.app links, so previews and shared
@@ -23,20 +24,71 @@ export type Preview = {
   tone: "open" | "full" | "locked" | "cancelled";
 };
 
-const cap = (s: string) => s.charAt(0).toLocaleUpperCase("bg") + s.slice(1);
+const LOCALE: Record<Lang, string> = { bg: "bg-BG", en: "en-GB" };
 
-function whenOf(day: MatchdayView): string {
+const WORDS = {
+  bg: {
+    cancelled: "Отменен",
+    cancelledTitle: "Отменен мач",
+    cancelledBody: "Мачът няма да се играе.",
+    cancelledWhy: (reason: string) => `Отменен: ${reason}`,
+    draw: "Равен",
+    won: (team: "a" | "b") => `Спечели Отбор ${team === "a" ? "А" : "Б"}`,
+    result: "Резултат",
+    teams: "Отбори",
+    teamsReady: "Отборите са готови",
+    seeTeams: "Виж кой в кой отбор е",
+    lockedBody: "Отборите са заключени. Виж кой в кой отбор е.",
+    vote: "Гласувай за отбори",
+    voteCount: "3 варианта · гласуват дванайсетимата",
+    voteBody: "Три варианта за отбори. Гласувай за най-честния.",
+    full: "Пълен",
+    newGame: "Нов мач",
+    signed: (n: number) => `${n}/12 записани`,
+    reserves: (n: number) => `${n} резерви`,
+    fullBody: (reserves: string) => `Пълен: 12/12${reserves}. Можеш да се запишеш като резерва.`,
+    openBody: (n: number) => `Записани ${n}/12, трябват още ${12 - n}. Запиши се!`,
+  },
+  en: {
+    cancelled: "Cancelled",
+    cancelledTitle: "Game cancelled",
+    cancelledBody: "The game is off.",
+    cancelledWhy: (reason: string) => `Cancelled: ${reason}`,
+    draw: "Draw",
+    won: (team: "a" | "b") => `Team ${team === "a" ? "A" : "B"} won`,
+    result: "Result",
+    teams: "Teams",
+    teamsReady: "Teams are set",
+    seeTeams: "See who's on which team",
+    lockedBody: "Teams are locked. See who's on which team.",
+    vote: "Vote for teams",
+    voteCount: "3 options · the twelve vote",
+    voteBody: "Three options for teams. Vote for the fairest.",
+    full: "Full",
+    newGame: "New game",
+    signed: (n: number) => `${n}/12 signed up`,
+    reserves: (n: number) => `${n} ${n === 1 ? "reserve" : "reserves"}`,
+    fullBody: (reserves: string) => `Full: 12/12${reserves}. You can sign up as a reserve.`,
+    openBody: (n: number) => `${n}/12 signed up, ${12 - n} more needed. Sign up!`,
+  },
+} satisfies Record<Lang, unknown>;
+
+const cap = (s: string, lang: Lang) => s.charAt(0).toLocaleUpperCase(lang) + s.slice(1);
+
+function whenOf(day: MatchdayView, lang: Lang): string {
+  const locale = LOCALE[lang];
   if (day.startsAt) {
     const d = new Date(day.startsAt);
-    const date = d.toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
-    const time = d.toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
-    return `${cap(date)} · ${time}`;
+    const date = d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
+    const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
+    return `${cap(date, lang)} · ${time}`;
   }
-  return cap(new Date(day.playedOn).toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long" }));
+  return cap(new Date(day.playedOn).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" }), lang);
 }
 
-export function matchPreview(day: MatchdayView): Preview {
-  const when = whenOf(day);
+export function matchPreview(day: MatchdayView, lang: Lang = "bg"): Preview {
+  const w = WORDS[lang];
+  const when = whenOf(day, lang);
   const venue = day.venue?.name ?? null;
   const n = Math.min(day.signups.length, 12);
   const reserves = Math.max(0, day.signups.length - 12);
@@ -44,12 +96,12 @@ export function matchPreview(day: MatchdayView): Preview {
 
   if (day.cancelledAt) {
     return {
-      badge: "Отменен",
+      badge: w.cancelled,
       when,
       venue,
-      count: day.cancelReason ?? "Мачът няма да се играе.",
-      title: `Отменен мач · ${when}`,
-      description: day.cancelReason ? `Отменен: ${day.cancelReason}` : "Мачът няма да се играе.",
+      count: day.cancelReason ?? w.cancelledBody,
+      title: `${w.cancelledTitle} · ${when}`,
+      description: day.cancelReason ? w.cancelledWhy(day.cancelReason) : w.cancelledBody,
       tone: "cancelled",
     };
   }
@@ -57,39 +109,39 @@ export function matchPreview(day: MatchdayView): Preview {
     const result =
       day.winner === null
         ? null
-        : (day.winner === "draw" ? "Равен" : `Спечели Отбор ${day.winner === "a" ? "А" : "Б"}`) +
+        : (day.winner === "draw" ? w.draw : w.won(day.winner)) +
           (day.scoreA !== null && day.scoreB !== null ? ` · ${day.scoreA}:${day.scoreB}` : "");
     return {
-      badge: result ? "Резултат" : "Отборите са готови",
+      badge: result ? w.result : w.teamsReady,
       when,
       venue,
-      count: result ?? "Виж кой в кой отбор е",
-      title: `${result ? "Резултат" : "Отбори"} · ${when}`,
-      description: `${result ?? "Отборите са заключени. Виж кой в кой отбор е."}${place}`,
+      count: result ?? w.seeTeams,
+      title: `${result ? w.result : w.teams} · ${when}`,
+      description: `${result ?? w.lockedBody}${place}`,
       tone: "locked",
     };
   }
   if (day.proposals.length > 0) {
     return {
-      badge: "Гласувай за отбори",
+      badge: w.vote,
       when,
       venue,
-      count: "3 варианта · гласуват дванайсетимата",
-      title: `Гласувай за отбори · ${when}`,
-      description: `Три варианта за отбори. Гласувай за най-честния.${place}`,
+      count: w.voteCount,
+      title: `${w.vote} · ${when}`,
+      description: `${w.voteBody}${place}`,
       tone: "full",
     };
   }
   const full = n >= 12;
   return {
-    badge: full ? "Пълен" : "Нов мач",
+    badge: full ? w.full : w.newGame,
     when,
     venue,
-    count: full ? `12/12 записани${reserves ? ` · ${reserves} резерви` : ""}` : `${n}/12 записани`,
-    title: `⚽ Нов мач · ${when}`,
+    count: full ? `${w.signed(12)}${reserves ? ` · ${w.reserves(reserves)}` : ""}` : w.signed(n),
+    title: `⚽ ${w.newGame} · ${when}`,
     description: full
-      ? `Пълен: 12/12${reserves ? `, ${reserves} резерви` : ""}. Можеш да се запишеш като резерва.${place}`
-      : `Записани ${n}/12, трябват още ${12 - n}. Запиши се!${place}`,
+      ? `${w.fullBody(reserves ? `, ${w.reserves(reserves)}` : "")}${place}`
+      : `${w.openBody(n)}${place}`,
     tone: full ? "full" : "open",
   };
 }

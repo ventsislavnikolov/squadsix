@@ -9,19 +9,20 @@ import {
   RefreshCwIcon,
   Share2Icon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmButton } from "@/components/confirm-button";
 import { JevTrace } from "@/components/jev-trace";
 import { PageHead, PANE, Section } from "@/components/page";
 import { ProposalCard } from "@/components/proposal-card";
 import { AnnounceShare, EventInfo, OwnerActions, SignupPanel } from "@/components/signup-panel";
+import { MatchSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WhoAmI } from "@/components/who-am-i";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
 import { matchPreview, previewVersion, SITE, shareUrl } from "@/lib/preview";
-import { ballsQuery, matchdayQuery, pickListQuery } from "@/lib/queries";
+import { ballsQuery, matchdayQuery, pickListQuery, sessionQuery, warm } from "@/lib/queries";
 import { shareText } from "@/lib/share";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
@@ -30,11 +31,13 @@ import type { MatchdayView, RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/match/$id")({
   loader: async ({ context, params }) => {
-    const [day] = await Promise.all([
-      context.queryClient.ensureQueryData(matchdayQuery(params.id)),
-      context.queryClient.ensureQueryData(pickListQuery),
-      context.queryClient.ensureQueryData(ballsQuery),
-    ]);
+    const qc = context.queryClient;
+    warm(qc, matchdayQuery(params.id), pickListQuery, ballsQuery);
+    // A link crawler reads the head and nothing after it, so it waits for the game. A
+    // person gets the skeleton at once and the game streams in.
+    const session = await qc.ensureQueryData(sessionQuery);
+    if (!session.crawler) return null;
+    const day = await qc.ensureQueryData(matchdayQuery(params.id));
     if (!day) throw notFound();
     return { preview: matchPreview(day), version: previewVersion(day) };
   },
@@ -70,6 +73,7 @@ export const Route = createFileRoute("/match/$id")({
     };
   },
   component: MatchPage,
+  pendingComponent: MatchSkeleton,
 });
 
 const MAX_RUNS = 3;
@@ -80,9 +84,20 @@ const MAX_RUNS = 3;
  */
 function MatchPage() {
   const { id } = Route.useParams();
-  const { data } = useSuspenseQuery(matchdayQuery(id));
-  const day = data!;
-  const { t, name, error, isAdmin } = useI18n();
+  const { data: day } = useSuspenseQuery(matchdayQuery(id));
+  // The panels below read these two; wait for them here so nothing pops in afterwards.
+  useSuspenseQuery(pickListQuery);
+  useSuspenseQuery(ballsQuery);
+  if (!day) throw notFound();
+  const { t, name, error, isAdmin, lang } = useI18n();
+  // The tab's title, in the reader's language. Crawlers get theirs from the head above.
+  const tabTitle = matchPreview(day, lang).title;
+  useEffect(() => {
+    document.title = tabTitle;
+    return () => {
+      document.title = "Squad Six";
+    };
+  }, [tabTitle]);
   const qc = useQueryClient();
   const [me] = useMe();
 
@@ -118,7 +133,7 @@ function MatchPage() {
   const voted = new Set(day.votes.map((v) => v.playerId));
   const notVoted = day.squad.filter((pid) => !voted.has(pid)).map((pid) => byId.get(pid));
   const runsLeft = MAX_RUNS - day.runsUsed;
-  const canRebalance = !locked && day.votes.length === 0 && runsLeft > 0 && day.squad.length === 12;
+  const canRebalance = !locked && runsLeft > 0 && day.squad.length === 12;
 
   const chosen = day.proposals.find((p) => p.id === day.lockedProposalId);
   // Who would win if locked now — same rule as the server: most votes, then Jev's order.
@@ -139,6 +154,14 @@ function MatchPage() {
       : hasTeams
         ? t.match.titleOpen
         : when;
+
+  const againLabel = (
+    <>
+      {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+      {t.match.again}
+      <span className="font-mono text-[11px] text-fg/45">{t.match.againLeft(runsLeft)}</span>
+    </>
+  );
 
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
@@ -164,20 +187,29 @@ function MatchPage() {
         actions={
           isAdmin && (
             <>
-              {!cancelled && !locked && hasTeams && (
-                <Button
-                  variant="outline"
-                  disabled={!canRebalance || again.isPending}
-                  title={
-                    day.votes.length > 0 ? t.match.againBlockedVotes : t.match.againHint(runsLeft)
-                  }
-                  onClick={() => again.mutate()}
-                >
-                  {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-                  {t.match.again}
-                  <span className="font-mono text-[11px] text-fg/45">{runsLeft}/{MAX_RUNS}</span>
-                </Button>
-              )}
+              {!cancelled && !locked && hasTeams &&
+                (day.votes.length > 0 ? (
+                  // New options throw the votes away, so that takes a second yes.
+                  <ConfirmButton
+                    variant="outline"
+                    disabled={!canRebalance || again.isPending}
+                    title={t.match.againTitle}
+                    description={t.match.againBody(day.votes.length)}
+                    confirmLabel={t.match.again}
+                    onConfirm={() => again.mutate()}
+                  >
+                    {againLabel}
+                  </ConfirmButton>
+                ) : (
+                  <Button
+                    variant="outline"
+                    disabled={!canRebalance || again.isPending}
+                    title={t.match.againHint(runsLeft)}
+                    onClick={() => again.mutate()}
+                  >
+                    {againLabel}
+                  </Button>
+                ))}
               {!cancelled && !locked && leader && day.squad.length === 12 && (
                 <ConfirmButton
                   disabled={doLock.isPending}

@@ -1,12 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Empty, PageHead, PANE } from "@/components/page";
+import { ListSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { logQuery } from "@/lib/queries";
+import { logQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/log")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(logQuery),
+  loader: ({ context }) => warm(context.queryClient, logQuery),
+  pendingComponent: ListSkeleton,
   component: Log,
 });
 

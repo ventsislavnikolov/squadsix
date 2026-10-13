@@ -509,6 +509,11 @@ export async function squadForBalance(
   return { squad, namesEn: new Map(squad.map((p) => [p.id, names.get(p.id)!.en])) };
 }
 
+/** New options replace the old ones, and the votes for those go with them. */
+export async function clearVotes(matchdayId: string): Promise<void> {
+  await sql`delete from votes where matchday_id = ${matchdayId}`;
+}
+
 export async function saveRun(
   matchdayId: string,
   run: Omit<RunView, "trace"> & { trace: HarnessStep[]; trigger: "manual" | "auto" },

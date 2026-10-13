@@ -140,7 +140,10 @@ const bg = {
     leadLocked: "Спечели вариантът с най-много гласове. При равенство печели първият.",
     again: "Нови варианти",
     againHint: (left: number) => `Остават ${left} от 3 опита.`,
-    againBlockedVotes: "Вече има гласове. Нови варианти не може.",
+    againLeft: (left: number) => (left === 1 ? "остава 1" : `остават ${left}`),
+    againTitle: "Нови варианти?",
+    againBody: (votes: number) =>
+      `Вече има ${plural(votes, "глас", "гласа")}. Те се изтриват и всички гласуват наново.`,
     lock: "Заключи отборите",
     lockTitle: "Заключваме ли отборите?",
     lockBody: (position: number, votes: number) =>
@@ -415,7 +418,10 @@ const en: Dict = {
     leadLocked: "The option with the most votes won. A tie goes to the first one.",
     again: "New options",
     againHint: (left) => `${left} of 3 tries left.`,
-    againBlockedVotes: "People have voted. No new options now.",
+    againLeft: (left) => `${left} left`,
+    againTitle: "New options?",
+    againBody: (votes) =>
+      `There ${votes === 1 ? "is" : "are"} already ${plural(votes, "vote", "votes")}. They are cleared and everyone votes again.`,
     lock: "Lock teams",
     lockTitle: "Lock the teams?",
     lockBody: (position, votes) =>
