@@ -15,7 +15,6 @@
 
 import { boolean, choice, decide, score, type AnyEvaluateAdapter } from "@tanstack/ai";
 import { createOpenRouterDecider } from "@tanstack/ai-openrouter";
-import { createTypesafeDecider } from "@tanstack/ai-typesafe";
 import {
   bestSplits,
   effectiveRating,
@@ -26,9 +25,8 @@ import {
 } from "@/domain/balance";
 import { SITE } from "@/lib/preview";
 
-export const JEV_MODEL = "jev-latest";
-/** The same model, hosted by OpenRouter — no TypeSafe account needed. */
-export const JEV_OPENROUTER_MODEL = "~typesafe/jev-latest";
+/** Jev as OpenRouter hosts it. */
+export const JEV_MODEL = "~typesafe/jev-latest";
 const CANDIDATES = 10;
 const PICK = 3;
 
@@ -200,21 +198,11 @@ export async function balanceWithJev(
   }
 }
 
-/**
- * Where Jev is reached: TypeSafe directly if we have their key, otherwise through
- * OpenRouter, which hosts the same model. Both speak `decide()`, so nothing else changes.
- */
+/** Jev is reached through OpenRouter, which hosts the model. No key, no Jev. */
 function jevAdapter(): AnyEvaluateAdapter | null {
-  const typesafe = process.env.TYPESAFE_API_KEY;
-  if (typesafe) return createTypesafeDecider(JEV_MODEL, typesafe, { timeout: 15_000 });
-  const openrouter = process.env.OPENROUTER_API_KEY;
-  if (openrouter) {
-    return createOpenRouterDecider(JEV_OPENROUTER_MODEL, openrouter, {
-      xTitle: "Squad Six",
-      httpReferer: SITE,
-    });
-  }
-  return null;
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) return null;
+  return createOpenRouterDecider(JEV_MODEL, key, { xTitle: "Squad Six", httpReferer: SITE });
 }
 
 function fallback(

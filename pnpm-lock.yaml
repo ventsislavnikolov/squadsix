@@ -32,9 +32,6 @@ importers:
       '@tanstack/ai-openrouter':
         specifier: ^0.19.20
         version: 0.19.20(@tanstack/ai@0.61.0(zod@4.6.5))
-      '@tanstack/ai-typesafe':
-        specifier: ^0.1.4
-        version: 0.1.4(@tanstack/ai@0.61.0(zod@4.6.5))
       '@tanstack/react-form':
         specifier: latest
         version: 1.33.5(@tanstack/react-start@1.168.60(crossws@0.4.12(srvx@0.11.22))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.11)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1590,11 +1587,6 @@ packages:
 
   '@tanstack/ai-openrouter@0.19.20':
     resolution: {integrity: sha512-zRwIma98ZTBPAxUpLGfq3fm98hyeGeKz8t6ShHCLnrUtoxcHo8+wAZ+LEuwuRosAv29/WR7yjU0U8HEZSdSW7Q==}
-    peerDependencies:
-      '@tanstack/ai': ^0.61.0
-
-  '@tanstack/ai-typesafe@0.1.4':
-    resolution: {integrity: sha512-EC+s7QW95UPE6Cvxkt04Ec4GBc/Z6JRpaPl9/njnYLGl6q1Sc8nPIrd1QbLGvaUqFy8M6xTD/ZoMd9WDVIuojg==}
     peerDependencies:
       '@tanstack/ai': ^0.61.0
 
@@ -5350,11 +5342,6 @@ snapshots:
   '@tanstack/ai-openrouter@0.19.20(@tanstack/ai@0.61.0(zod@4.6.5))':
     dependencies:
       '@openrouter/sdk': 0.13.20
-      '@tanstack/ai': 0.61.0(zod@4.6.5)
-      '@tanstack/ai-utils': 0.4.1
-
-  '@tanstack/ai-typesafe@0.1.4(@tanstack/ai@0.61.0(zod@4.6.5))':
-    dependencies:
       '@tanstack/ai': 0.61.0(zod@4.6.5)
       '@tanstack/ai-utils': 0.4.1
 

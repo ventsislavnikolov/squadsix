@@ -35,6 +35,28 @@ const bg = {
     const time = d.toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
     return `${day.charAt(0).toLocaleUpperCase("bg")}${day.slice(1)} · ${time}`;
   },
+  weather: {
+    hint: "Прогноза за часа на мача",
+    feels: "Усеща се",
+    wind: "Вятър",
+    kmh: "км/ч",
+    chance: "Вероятност за валежи",
+    mm: "мм",
+    radar: "Радар",
+    radarDry: "сухо през целия мач",
+    radarWet: (wet: number, total: number, max: string) =>
+      `валежи в ${wet} от ${total} мин, до ${max} мм/ч`,
+    kind: {
+      clear: "Ясно",
+      partly: "Разкъсана облачност",
+      cloudy: "Облачно",
+      fog: "Мъгла",
+      drizzle: "Ръми",
+      rain: "Дъжд",
+      snow: "Сняг",
+      storm: "Гръмотевична буря",
+    },
+  },
   start: {
     eyebrow: "Squad Six",
     title: "Няма насрочен мач.",
@@ -312,6 +334,27 @@ const en: Dict = {
     const day = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
     const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
     return `${day} · ${time}`;
+  },
+  weather: {
+    hint: "Forecast for kick-off",
+    feels: "Feels like",
+    wind: "Wind",
+    kmh: "km/h",
+    chance: "Chance of rain",
+    mm: "mm",
+    radar: "Radar",
+    radarDry: "dry for the whole game",
+    radarWet: (wet, total, max) => `rain in ${wet} of ${total} min, up to ${max} mm/h`,
+    kind: {
+      clear: "Clear",
+      partly: "Partly cloudy",
+      cloudy: "Cloudy",
+      fog: "Fog",
+      drizzle: "Drizzle",
+      rain: "Rain",
+      snow: "Snow",
+      storm: "Thunderstorm",
+    },
   },
   start: {
     eyebrow: "Squad Six",

@@ -18,6 +18,7 @@ import { AnnounceShare, EventInfo, OwnerActions, SignupPanel } from "@/component
 import { MatchSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useNowcast, useWeather, WeatherCard } from "@/components/weather";
 import { WhoAmI } from "@/components/who-am-i";
 import { hasStarted } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
@@ -100,6 +101,8 @@ function MatchPage() {
   }, [tabTitle]);
   const qc = useQueryClient();
   const [me] = useMe();
+  const weather = useWeather(day);
+  const nowcast = useNowcast(day);
 
   const byId = new Map(day.players.map((p) => [p.id, p]));
   const refresh = () =>
@@ -245,6 +248,8 @@ function MatchPage() {
           {t.event.cancelled}
         </div>
       )}
+
+      {weather && !started && <WeatherCard weather={weather} nowcast={nowcast} />}
 
       {(day.venue || day.note || day.changes || day.createdBy) && <EventInfo day={day} byId={byId} />}
 

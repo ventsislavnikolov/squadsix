@@ -51,4 +51,4 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 
 ## Jev
 
-Jev is a decision model, not a chat LLM. See `src/server/jev-harness.ts`. It's reached two ways: TypeSafe directly (`TYPESAFE_API_KEY`), or through OpenRouter (`OPENROUTER_API_KEY`, model `~typesafe/jev-latest`). Without either key, the app uses arithmetic only and says so.
+Jev is a decision model, not a chat LLM. See `src/server/jev-harness.ts`. It's reached through OpenRouter (`OPENROUTER_API_KEY`, model `~typesafe/jev-latest`). Without the key, the app uses arithmetic only and says so.
