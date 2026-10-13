@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # the tag, the release, the CHANGELOG.md commit
+  issues: write # "released in vX" on the issues a release closes
+  pull-requests: write # …and on the pull requests it contains
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # every commit since the last tag
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Straight from npm rather than package.json: the app never imports any of it.
+      - run: >
+          npx --yes
+          -p semantic-release@25
+          -p @semantic-release/changelog@7
+          -p @semantic-release/git@11
+          semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

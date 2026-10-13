@@ -51,3 +51,16 @@ DATABASE_URL=… node scripts/migrate.mjs db/002_signups.sql
 Live at https://squadsix.ventsislavnikolov.com (also https://squadsix.vercel.app). Every push to `main` on
 [github.com/ventsislavnikolov/squadsix](https://github.com/ventsislavnikolov/squadsix)
 deploys to production (Vercel project `squadsix`).
+
+## Commits and releases
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org), with an
+optional gitmoji in front: `✨ feat: forecast card`, `fix(match): wrap the buttons`.
+A git hook checks the message when you commit, and a workflow checks every pull request.
+
+When `main` moves, [semantic-release](https://semantic-release.org) reads the commits
+since the last tag and cuts a release: `fix` and `perf` make a patch (1.0.1), `feat` a
+minor (1.1.0), a `!` after the type or a `BREAKING CHANGE:` footer a major (2.0.0).
+`chore`, `docs`, `refactor` and the rest release nothing. It writes `CHANGELOG.md`,
+tags the commit and opens a GitHub Release. Vercel skips the deploy for the changelog
+commit. The format lives in `commit-format.mjs`.
