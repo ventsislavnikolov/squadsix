@@ -33,19 +33,19 @@ importers:
         specifier: ^0.19.20
         version: 0.19.20(@tanstack/ai@0.61.0(zod@4.6.5))
       '@tanstack/react-form':
-        specifier: latest
+        specifier: ^1.33.5
         version: 1.33.5(@tanstack/react-start@1.168.60(crossws@0.4.12(srvx@0.11.22))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.11)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-query':
-        specifier: latest
+        specifier: ^5.104.0
         version: 5.104.0(react@19.3.0)
       '@tanstack/react-router':
-        specifier: latest
+        specifier: ^1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-router-ssr-query':
-        specifier: latest
+        specifier: ^1.167.3
         version: 1.167.3(@tanstack/query-core@5.104.0)(@tanstack/react-query@5.104.0(react@19.3.0))(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/router-core@1.171.34)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start':
-        specifier: latest
+        specifier: ^1.168.60
         version: 1.168.60(crossws@0.4.12(srvx@0.11.22))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.11)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0))
       class-variance-authority:
         specifier: ^0.7.1
@@ -54,7 +54,7 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: latest
+        specifier: ^1.48.0
         version: 1.48.0(react@19.3.0)
       nitro:
         specifier: 3.0.260610-beta
@@ -85,16 +85,16 @@ importers:
         version: 4.6.5
     devDependencies:
       '@tanstack/devtools-vite':
-        specifier: latest
+        specifier: ^0.8.5
         version: 0.8.5(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0))
       '@tanstack/react-devtools':
-        specifier: latest
+        specifier: ^0.10.13
         version: 0.10.13(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)
       '@tanstack/react-query-devtools':
-        specifier: latest
+        specifier: ^5.104.0
         version: 5.104.0(@tanstack/react-query@5.104.0(react@19.3.0))(@types/react@19.3.0)(csstype@3.2.3)(react@19.3.0)
       '@tanstack/react-router-devtools':
-        specifier: latest
+        specifier: ^1.167.2
         version: 1.167.2(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/router-core@1.171.34)(csstype@3.2.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: ^22.10.2
@@ -115,7 +115,7 @@ importers:
         specifier: ^8.0.0
         version: 8.3.1(@types/node@22.20.4)(jiti@2.7.0)
       vitest:
-        specifier: latest
+        specifier: ^5.0.2
         version: 5.0.2(@types/node@22.20.4)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0))
 
 packages:
