@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  ChevronRightIcon,
   CloudDrizzleIcon,
   CloudFogIcon,
   CloudIcon,
@@ -16,10 +17,12 @@ import { cn } from "@/lib/utils";
 import {
   type Coords,
   GAME_SECONDS,
+  type Model,
   type Nowcast,
   NOWCAST_SECONDS,
   parseCoords,
   SOFIA,
+  strengthOf,
   type Weather,
   weatherQuery,
 } from "@/lib/weather";
@@ -66,6 +69,15 @@ export function useNowcast(day: MatchdayView): Nowcast | null {
   });
   return data ?? null;
 }
+
+const MODEL_NAME: Record<Model, string> = {
+  ecmwf_ifs025: "ECMWF",
+  icon_seamless: "ICON",
+  gfs_seamless: "GFS",
+  meteofrance_seamless: "Météo-France",
+  ukmo_seamless: "Met Office",
+  gem_seamless: "GEM",
+};
 
 function iconOf(w: Weather) {
   switch (w.kind) {
@@ -245,6 +257,13 @@ export function WeatherCard({ weather: w, nowcast }: { weather: Weather; nowcast
           ? DRIZZLE
           : null;
   const fact = "font-semibold text-white tabular-nums";
+  // "Light rain", not just "rain": how hard matters more than what.
+  const label = (kind: Weather["kind"], mmPerHour: number) =>
+    kind === "rain" || kind === "drizzle"
+      ? t.weather.rain[strengthOf(mmPerHour)]
+      : kind === "snow"
+        ? t.weather.snow[strengthOf(mmPerHour)]
+        : t.weather.kind[kind];
 
   return (
     <section
@@ -296,25 +315,58 @@ export function WeatherCard({ weather: w, nowcast }: { weather: Weather; nowcast
           </p>
           <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-white/80">
             <span>
-              {t.weather.chance} <span className={fact}>{w.chance}%</span>
+              {t.weather.rainVote} <span className={fact}>{t.weather.ofModels(w.wetModels, w.models)}</span>
             </span>
             <span className={fact}>
-              {w.amount.toFixed(1)} {t.weather.mm}
+              {w.amount.toFixed(1)} {t.weather.mmh}
+            </span>
+          </p>
+          <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-white/80">
+            <span>
+              {t.weather.before} <span className={fact}>{w.before.mm.toFixed(1)} {t.weather.mm}</span>
+            </span>
+            <span>
+              {t.weather.pitchLabel} <span className={fact}>{t.weather.pitch[w.before.pitch]}</span>
             </span>
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-center">
           <Icon className="size-12" strokeWidth={1.6} aria-hidden />
-          <p className="text-[16px] font-semibold">{t.weather.kind[w.kind]}</p>
+          <p className="text-[16px] font-semibold">{label(w.kind, w.amount)}</p>
         </div>
       </div>
 
       {nowcast && <Radar nowcast={nowcast} />}
 
+      <details className="group mt-5 border-t border-white/20 pt-3 text-[13px]">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-white/80 hover:text-white [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
+          {t.weather.showModels(w.models)}
+        </summary>
+        <table className="mt-3 w-full max-w-md text-left tabular-nums">
+          <tbody>
+            {w.runs.map((r) => (
+              <tr key={r.model} className="border-t border-white/10 first:border-0">
+                <th scope="row" className="py-1.5 pr-3 font-normal text-white/85">
+                  {MODEL_NAME[r.model]} <span className="text-white/50">{t.weather.from[r.model]}</span>
+                </th>
+                <td className="py-1.5 pr-3 font-semibold">{r.temp.toFixed(1)}°</td>
+                <td className="py-1.5 pr-3 font-semibold">
+                  {r.amount.toFixed(1)} {t.weather.mmh}
+                </td>
+                <td className="py-1.5 text-white/85">{label(r.kind, r.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+
       <p className="mt-5 text-[11px] text-white/55">
         <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className="hover:text-white">
           Open-Meteo
         </a>
+        {" · "}
+        {t.weather.blended(w.models)}
         {nowcast && (
           <>
             {" · "}
