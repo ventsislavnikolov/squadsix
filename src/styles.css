@@ -261,3 +261,97 @@
   letter-spacing: 0.2em;
   color: color-mix(in oklab, var(--color-foreground) 50%, transparent);
 }
+
+/* The weather card (components/weather.tsx): a sky, clouds drifting across it, and rain
+   or snow falling in front. */
+.weather-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.weather-clouds {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat-x;
+  background-size: var(--weather-span) 100%;
+  animation: weather-drift linear infinite;
+}
+
+.weather-stars {
+  position: absolute;
+  inset: 0;
+  mask-image: linear-gradient(to bottom, #000 30%, transparent 95%);
+  animation: weather-twinkle 5s ease-in-out infinite alternate;
+}
+
+/* Lightning: dark for most of the loop, then two quick flickers. */
+.weather-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(70% 120% at 70% 0%, rgb(235 232 255 / 0.9), transparent 70%);
+  opacity: 0;
+  animation: weather-flash 11s linear infinite;
+}
+
+/* Darkens the side the numbers sit on, so white text holds on any sky. */
+.weather-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(10 12 30 / 0.3), transparent 55%),
+    linear-gradient(0deg, rgb(10 12 30 / 0.22), transparent 45%);
+}
+
+.weather-layer {
+  position: absolute;
+  inset: -45% -12%;
+  background-repeat: repeat;
+  animation: weather-fall linear infinite;
+}
+
+.weather-slant {
+  rotate: 12deg;
+}
+
+@keyframes weather-fall {
+  to {
+    background-position: 0 var(--weather-drop);
+  }
+}
+
+@keyframes weather-drift {
+  to {
+    background-position-x: calc(-1 * var(--weather-span));
+  }
+}
+
+@keyframes weather-twinkle {
+  from {
+    opacity: 0.55;
+  }
+}
+
+@keyframes weather-flash {
+  0%,
+  61%,
+  64%,
+  68%,
+  100% {
+    opacity: 0;
+  }
+  62%,
+  66% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weather-layer,
+  .weather-clouds,
+  .weather-stars,
+  .weather-flash {
+    animation: none;
+  }
+}

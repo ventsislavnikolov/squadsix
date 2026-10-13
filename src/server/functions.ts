@@ -6,6 +6,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
+import { type Coords, GAME_SECONDS, NOWCAST_SECONDS, type Nowcast, SOFIA } from "@/lib/weather";
 import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
 import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
@@ -14,6 +15,7 @@ import { checkCredentials, endSession, isAdmin, requireAdmin, startSession } fro
 import { balanceWithJev } from "./jev-harness";
 import { logAction, readLog } from "./log";
 import * as repo from "./repo";
+import { resolveCoords } from "./geo";
 
 export type ErrorCode =
   | "exists"
@@ -487,6 +489,67 @@ async function runBalance(matchdayId: string, trigger: "manual" | "auto") {
     detail: { source: result.source, model: result.model, error: result.error, trigger },
   });
 }
+
+/* ---------------------------------------------------------------------- weather -- */
+
+/** Where a map link points, for links the browser can't read coordinates from itself. */
+export const getCoords = createServerFn({ method: "GET" })
+  .validator(z.object({ mapUrl: z.url().max(500) }))
+  .handler(({ data }): Promise<Coords | null> => resolveCoords(data.mapUrl));
+
+const NOWCAST_TTL_MS = 5 * 60_000;
+const nowcasts = new Map<string, { at: number; value: Nowcast | null }>();
+
+/**
+ * Radar nowcast for the hour of the game, once kick-off is within its four-hour reach.
+ * Rainbow.AI wants a secret key, so this goes through the server; without the key (or
+ * where their radar doesn't reach) there is simply no nowcast.
+ */
+export const getNowcast = createServerFn({ method: "GET" })
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }): Promise<Nowcast | null> => {
+    const key = process.env.RAINBOW_API_KEY;
+    if (!key) return null;
+    const hit = nowcasts.get(data.id);
+    if (hit && Date.now() - hit.at < NOWCAST_TTL_MS) return hit.value;
+
+    const place = await repo.matchPlace(data.id);
+    if (!place || place.starts === null || place.cancelled) return null;
+    const now = Date.now() / 1000;
+    const end = place.starts + GAME_SECONDS;
+    if (place.starts - now > NOWCAST_SECONDS || now > end) return null;
+
+    let value: Nowcast | null = null;
+    try {
+      const { lat, lng } = (await resolveCoords(place.mapUrl)) ?? SOFIA;
+      const ask = (product: string) =>
+        fetch(`https://api.rainbow.ai/nowcast/v1/${product}/${lng}/${lat}`, {
+          headers: { "Ocp-Apim-Subscription-Key": key },
+        });
+      // Radar where there is one; their global (satellite) product where there isn't.
+      let res = await ask("precip");
+      if (res.status === 404) res = await ask("precip-global");
+      if (res.ok) {
+        const body = (await res.json()) as {
+          forecast?: { precipRate: number; precipType: string; timestampBegin: number }[];
+        };
+        const minutes = (body.forecast ?? [])
+          .filter((f) => f.timestampBegin >= place.starts! - 30 && f.timestampBegin < end)
+          .sort((a, b) => a.timestampBegin - b.timestampBegin);
+        if (minutes.length > 0) {
+          value = {
+            from: minutes[0]!.timestampBegin,
+            rates: minutes.map((f) => f.precipRate),
+            snow: minutes.some((f) => f.precipType === "snow"),
+          };
+        }
+      }
+    } catch {
+      // No nowcast is a fine answer; the forecast still shows.
+    }
+    nowcasts.set(data.id, { at: Date.now(), value });
+    return value;
+  });
 
 /* ------------------------------------------------------------------------ admin -- */
 

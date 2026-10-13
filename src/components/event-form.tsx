@@ -9,9 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useEffect, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { useWeatherAt, WeatherCard } from "@/components/weather";
 import { useI18n } from "@/lib/i18n";
 import { venuesQuery } from "@/lib/queries";
+import { sofiaInstant } from "@/lib/weather";
 
 const NEW = "__new__";
 
@@ -182,12 +185,37 @@ export function EventForm({
         )}
       </form.Field>
 
+      <form.Subscribe selector={(s) => s.values}>
+        {(v) => {
+          const picked = venues.find((x) => x.id === v.venueId);
+          // A day, a time and a place — then it's worth saying what the sky will do.
+          const placed = picked ? true : v.venueName.trim().length >= 2;
+          return (
+            <Forecast
+              startsAt={placed ? sofiaInstant(v.date, v.time) : null}
+              mapUrl={picked ? picked.mapUrl : v.mapUrl.trim() || null}
+            />
+          );
+        }}
+      </form.Subscribe>
+
       {error && <p className="text-[13px] text-destructive">{error}</p>}
       <Button type="submit" size="lg" disabled={pending}>
         {submitLabel}
       </Button>
     </form>
   );
+}
+
+/** The weather for the game being set up. Waits for typing to stop before asking. */
+function Forecast({ startsAt, mapUrl }: { startsAt: string | null; mapUrl: string | null }) {
+  const [settled, setSettled] = useState({ startsAt, mapUrl });
+  useEffect(() => {
+    const id = setTimeout(() => setSettled({ startsAt, mapUrl }), 500);
+    return () => clearTimeout(id);
+  }, [startsAt, mapUrl]);
+  const weather = useWeatherAt(settled.startsAt, settled.mapUrl);
+  return weather && <WeatherCard weather={weather} nowcast={null} />;
 }
 
 /** Place picker for the quick game: optional, defaults to the last used. */

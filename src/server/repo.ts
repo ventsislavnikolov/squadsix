@@ -339,6 +339,19 @@ export async function matchInfo(id: string) {
   };
 }
 
+/** When and where, for the weather. */
+export async function matchPlace(id: string) {
+  const [m] = await sql`
+    select extract(epoch from m.starts_at) as starts, m.cancelled_at is not null as cancelled, v.map_url
+    from matchdays m left join venues v on v.id = m.venue_id where m.id = ${id}`;
+  if (!m) return null;
+  return {
+    starts: m.starts === null ? null : Number(m.starts),
+    cancelled: Boolean(m.cancelled),
+    mapUrl: (m.map_url as string | null) ?? null,
+  };
+}
+
 /** Edits date, time, place or note, and remembers what changed for the announcement. */
 export async function editMatch(
   id: string,
