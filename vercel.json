@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "tanstack-start",
-  "regions": ["fra1"]
+  "regions": ["fra1"],
+  "ignoreCommand": "git log -1 --pretty=%s | grep -q 'chore(release)'"
 }
