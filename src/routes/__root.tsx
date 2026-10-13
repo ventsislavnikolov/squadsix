@@ -1,4 +1,5 @@
 import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
+import { Suspense } from "react";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -6,18 +7,19 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { PANE } from "@/components/page";
+import { Bone } from "@/components/skeletons";
 import { LangToggle, ThemeToggle, THEME_SCRIPT } from "@/components/toggles";
 import { useI18n } from "@/lib/i18n";
-import { openMatchQuery, sessionQuery } from "@/lib/queries";
+import { openMatchQuery, sessionQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  beforeLoad: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(sessionQuery),
-      context.queryClient.ensureQueryData(openMatchQuery),
-    ]),
+  // The session is a cookie read; the open game is a database read the nav can wait for.
+  beforeLoad: ({ context }) => {
+    warm(context.queryClient, openMatchQuery);
+    return context.queryClient.ensureQueryData(sessionQuery);
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -55,7 +57,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function Nav() {
   const { t, isAdmin } = useI18n();
-  const { data: open } = useSuspenseQuery(openMatchQuery);
   const link = "whitespace-nowrap text-fg/55 hover:text-fg transition-colors";
   const active = { className: "text-fg" };
   return (
@@ -67,15 +68,9 @@ function Nav() {
           <span className="eyebrow hidden md:inline">6 × 6</span>
         </Link>
         <div className="flex items-center gap-3.5 text-[13px] sm:gap-5">
-          {open.id ? (
-            <Link to="/match/$id" params={{ id: open.id }} activeProps={active} className={link}>
-              {t.nav.match}
-            </Link>
-          ) : (
-            <Link to="/" activeOptions={{ exact: true }} activeProps={active} className={link}>
-              {t.nav.newMatch}
-            </Link>
-          )}
+          <Suspense fallback={<Bone className="h-3.5 w-10" />}>
+            <GameLink className={link} />
+          </Suspense>
           <Link to="/history" activeProps={active} className={link}>
             {t.nav.history}
           </Link>
@@ -103,6 +98,22 @@ function Nav() {
         </div>
       </div>
     </nav>
+  );
+}
+
+/** "Game" while one is open, "New game" otherwise. */
+function GameLink({ className }: { className: string }) {
+  const { t } = useI18n();
+  const { data: open } = useSuspenseQuery(openMatchQuery);
+  const active = { className: "text-fg" };
+  return open.id ? (
+    <Link to="/match/$id" params={{ id: open.id }} activeProps={active} className={className}>
+      {t.nav.match}
+    </Link>
+  ) : (
+    <Link to="/" activeOptions={{ exact: true }} activeProps={active} className={className}>
+      {t.nav.newMatch}
+    </Link>
   );
 }
 

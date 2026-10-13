@@ -15,14 +15,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { RATING_STEPS } from "@/domain/balance";
 import { bgToEn, enToBg, type PersonName } from "@/domain/names";
+import { ListSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { fullRosterQuery } from "@/lib/queries";
+import { fullRosterQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { logout, savePlayer } from "@/server/functions";
 import type { RosterPlayer } from "@/server/repo";
 
 export const Route = createFileRoute("/admin/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(fullRosterQuery),
+  loader: ({ context }) => warm(context.queryClient, fullRosterQuery),
+  pendingComponent: ListSkeleton,
   component: Players,
 });
 

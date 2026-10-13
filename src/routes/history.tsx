@@ -1,13 +1,15 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Empty, PageHead, PANE } from "@/components/page";
+import { ListSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { matchdaysQuery } from "@/lib/queries";
+import { matchdaysQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import type { MatchdaySummary } from "@/server/repo";
 
 export const Route = createFileRoute("/history")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(matchdaysQuery),
+  loader: ({ context }) => warm(context.queryClient, matchdaysQuery),
+  pendingComponent: ListSkeleton,
   component: History,
 });
 

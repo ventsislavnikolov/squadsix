@@ -5,14 +5,16 @@ import { Empty, PageHead, PANE } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { ListSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { venuesQuery } from "@/lib/queries";
+import { venuesQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { saveVenue } from "@/server/functions";
 import type { Venue } from "@/server/repo";
 
 export const Route = createFileRoute("/admin/venues")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(venuesQuery),
+  loader: ({ context }) => warm(context.queryClient, venuesQuery),
+  pendingComponent: ListSkeleton,
   component: Venues,
 });
 

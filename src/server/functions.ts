@@ -5,7 +5,7 @@
 // the reader's language. Every action — refused or not — goes to the activity log.
 
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie, setCookie } from "@tanstack/react-start/server";
+import { getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
 import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
@@ -46,12 +46,16 @@ const RATING = z
 
 /* --------------------------------------------------------------------- session -- */
 
-export type Session = { lang: Lang; isAdmin: boolean };
+/** `crawler`: a link-preview fetcher (Messenger and the like), which reads only the head. */
+export type Session = { lang: Lang; isAdmin: boolean; crawler: boolean };
+
+const CRAWLER = /bot|crawl|spider|facebookexternalhit|whatsapp|telegram|viber|slack|discord|preview/i;
 
 export const getSession = createServerFn({ method: "GET" }).handler(
   (): Session => ({
     lang: getCookie("s6_lang") === "en" ? "en" : "bg",
     isAdmin: isAdmin(),
+    crawler: CRAWLER.test(getRequestHeader("user-agent") ?? ""),
   }),
 );
 
@@ -343,7 +347,7 @@ export const makeTeams = createServerFn({ method: "POST" })
     await runBalance(data.id, "manual");
   });
 
-/** Ask Jev again. Admin only, before anyone has voted, while open, at most three runs. */
+/** Ask Jev again. Admin only, while open, at most three runs. Votes already cast are dropped. */
 export const rebalance = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
@@ -357,16 +361,16 @@ export const rebalance = createServerFn({ method: "POST" })
           ? "locked"
           : state.squad !== SQUAD_SIZE
             ? "not-full"
-            : state.votes > 0
-              ? "has-votes"
-              : state.runs >= repo.MAX_RUNS_PER_MATCHDAY
-                ? "run-limit"
-                : null;
+            : state.runs >= repo.MAX_RUNS_PER_MATCHDAY
+              ? "run-limit"
+              : null;
     if (refusal) {
       await logAction({ action: "balance.run", ok: false, matchdayId: data.id, detail: { refusal } });
       fail(refusal);
     }
     await runBalance(data.id, "manual");
+    // After the run, not before: a vote cast while Jev was thinking was for an old option.
+    await repo.clearVotes(data.id);
   });
 
 export const vote = createServerFn({ method: "POST" })

@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { effectiveRating, SQUAD_SIZE } from "@/domain/balance";
 import { useI18n } from "@/lib/i18n";
-import { openMatchQuery, pickListQuery, venuesQuery } from "@/lib/queries";
+import { FormSkeleton } from "@/components/skeletons";
+import { openMatchQuery, pickListQuery, venuesQuery, warm } from "@/lib/queries";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
 import { addGuest, quickCreate } from "@/server/functions";
@@ -23,11 +24,8 @@ export const Route = createFileRoute("/quick")({
     const open = await context.queryClient.fetchQuery(openMatchQuery);
     if (open.id) throw redirect({ to: "/match/$id", params: { id: open.id } });
   },
-  loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(pickListQuery),
-      context.queryClient.ensureQueryData(venuesQuery),
-    ]),
+  loader: ({ context }) => warm(context.queryClient, pickListQuery, venuesQuery),
+  pendingComponent: FormSkeleton,
   component: PickSquad,
 });
 

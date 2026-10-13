@@ -2,28 +2,24 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { EventForm, venueInput } from "@/components/event-form";
 import { PageHead, PANE } from "@/components/page";
+import { FormSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
-import { matchdayQuery, venuesQuery } from "@/lib/queries";
+import { matchdayQuery, venuesQuery, warm } from "@/lib/queries";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
 import { editMatch } from "@/server/functions";
 
 export const Route = createFileRoute("/edit/$id")({
-  loader: async ({ context, params }) => {
-    const [day] = await Promise.all([
-      context.queryClient.ensureQueryData(matchdayQuery(params.id)),
-      context.queryClient.ensureQueryData(venuesQuery),
-    ]);
-    if (!day) throw notFound();
-  },
+  loader: ({ context, params }) => warm(context.queryClient, matchdayQuery(params.id), venuesQuery),
+  pendingComponent: FormSkeleton,
   component: EditGame,
 });
 
 function EditGame() {
   const { id } = Route.useParams();
   const { t, error } = useI18n();
-  const { data } = useSuspenseQuery(matchdayQuery(id));
-  const day = data!;
+  const { data: day } = useSuspenseQuery(matchdayQuery(id));
+  if (!day) throw notFound();
   const [me] = useMe();
   const qc = useQueryClient();
   const navigate = useNavigate();
