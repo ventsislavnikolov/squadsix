@@ -11,6 +11,7 @@ import {
   getMatchdays,
   getOpenMatch,
   getPickList,
+  getRules,
   getSession,
   getVenues,
 } from "@/server/functions";
@@ -50,6 +51,12 @@ export const matchdayQuery = (id: string) =>
     // Votes arrive from other phones; keep the page current without a manual refresh.
     refetchInterval: 5_000,
   });
+
+/** Together and Apart rules. Admin-only. */
+export const rulesQuery = queryOptions({
+  queryKey: ["rules"],
+  queryFn: () => getRules(),
+});
 
 export const fullRosterQuery = queryOptions({
   queryKey: ["full-roster"],

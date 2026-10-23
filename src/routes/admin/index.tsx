@@ -54,6 +54,7 @@ function Players() {
       await navigate({ to: "/" });
       qc.removeQueries({ queryKey: ["full-roster"] });
       qc.removeQueries({ queryKey: ["log"] });
+      qc.removeQueries({ queryKey: ["rules"] });
       await qc.invalidateQueries();
     },
   });

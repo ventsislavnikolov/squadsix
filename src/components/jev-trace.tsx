@@ -74,7 +74,16 @@ function StepDetail({ step }: { step: HarnessStep }) {
   const { t } = useI18n();
   switch (step.kind) {
     case "measure":
-      return <p className="text-[12.5px] text-fg/50">{t.trace.measureDetail(step.candidates)}</p>;
+      return (
+        <div className="space-y-1 text-[12.5px] text-fg/50">
+          <p>{t.trace.measureDetail(step.candidates)}</p>
+          {!!step.rules && (
+            <p className={cn(!!step.broken && "text-warning")}>
+              {t.trace.measureRules(step.rules, step.broken ?? 0)}
+            </p>
+          )}
+        </div>
+      );
     case "decide":
       return (
         <p className="font-mono text-[12px] text-fg/55">

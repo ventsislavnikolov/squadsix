@@ -3,6 +3,7 @@
 // are dropped for anyone who is not the admin. Nothing above this layer decides that.
 
 import { SQUAD_SIZE, type Player } from "@/domain/balance";
+import type { Rules } from "@/domain/rules";
 import { nameFromInput, shortNames, type PersonName, type ShortName } from "@/domain/names";
 import { hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "@/domain/signup";
 import { sql } from "./db";
@@ -145,6 +146,39 @@ export async function isGuest(id: string): Promise<boolean> {
 export async function playerLabel(id: string): Promise<string> {
   const [row] = await sql`select first_bg, last_bg from players where id = ${id}`;
   return row ? `${row.first_bg} ${row.last_bg}`.trim() : id;
+}
+
+/* ------------------------------------------------------------------------ rules -- */
+
+export type RuleView = { id: string; kind: "together" | "apart"; players: string[] };
+
+/** Every Together and Apart rule. Admin-only, like ratings — never part of a public view. */
+export async function listRules(): Promise<RuleView[]> {
+  const rows = await sql`
+    select id, kind, players::text[] as players from team_rules order by kind desc, created_at`;
+  return rows.map((r) => ({
+    id: String(r.id),
+    kind: r.kind as RuleView["kind"],
+    players: r.players as string[],
+  }));
+}
+
+export function toRules(list: RuleView[]): Rules {
+  return {
+    together: list.filter((r) => r.kind === "together").map((r) => r.players),
+    apart: list.filter((r) => r.kind === "apart").map((r) => [r.players[0]!, r.players[1]!]),
+  };
+}
+
+export async function addRule(kind: RuleView["kind"], players: string[]): Promise<{ id: string }> {
+  const [row] = await sql`
+    insert into team_rules (kind, players) values (${kind}, ${players}::uuid[]) returning id`;
+  return { id: String(row!.id) };
+}
+
+export async function removeRule(id: string): Promise<boolean> {
+  const rows = await sql`delete from team_rules where id = ${id} returning id`;
+  return rows.length > 0;
 }
 
 /* ----------------------------------------------------------------------- venues -- */
@@ -506,20 +540,25 @@ export async function dueNow(matchdayId: string): Promise<"teams" | "lock" | nul
   return null;
 }
 
-/** The squad with ratings, and English short names — for the harness. Server-only. */
+/** The squad with ratings, English short names and the rules — for the harness. Server-only. */
 export async function squadForBalance(
   matchdayId: string,
-): Promise<{ squad: Player[]; namesEn: Map<string, string> }> {
-  const [rows, ids] = await Promise.all([
+): Promise<{ squad: Player[]; namesEn: Map<string, string>; rules: Rules }> {
+  const [rows, ids, rules] = await Promise.all([
     playerRows(),
     sql`select player_id from matchday_players where matchday_id = ${matchdayId}`,
+    listRules(),
   ]);
   const inSquad = new Set(ids.map((r) => String(r.player_id)));
   const names = shortNames(rows);
   const squad = rows
     .filter((r) => inSquad.has(r.id))
     .map((r) => ({ id: r.id, rating: r.rating, isGuest: r.isGuest }));
-  return { squad, namesEn: new Map(squad.map((p) => [p.id, names.get(p.id)!.en])) };
+  return {
+    squad,
+    namesEn: new Map(squad.map((p) => [p.id, names.get(p.id)!.en])),
+    rules: toRules(rules),
+  };
 }
 
 /** New options replace the old ones, and the votes for those go with them. */

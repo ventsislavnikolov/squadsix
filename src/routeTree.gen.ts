@@ -18,6 +18,7 @@ import { Route as NewRouteImport } from './routes/new'
 import { Route as QuickRouteImport } from './routes/quick'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminLogRouteImport } from './routes/admin/log'
+import { Route as AdminRulesRouteImport } from './routes/admin/rules'
 import { Route as AdminVenuesRouteImport } from './routes/admin/venues'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as MatchIdRouteImport } from './routes/match.$id'
@@ -68,6 +69,11 @@ const AdminLogRoute = AdminLogRouteImport.update({
   path: '/log',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminRulesRoute = AdminRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminVenuesRoute = AdminVenuesRouteImport.update({
   id: '/venues',
   path: '/venues',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/new': typeof NewRoute
   '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/rules': typeof AdminRulesRoute
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/new': typeof NewRoute
   '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/rules': typeof AdminRulesRoute
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/new': typeof NewRoute
   '/quick': typeof QuickRoute
   '/admin/log': typeof AdminLogRoute
+  '/admin/rules': typeof AdminRulesRoute
   '/admin/venues': typeof AdminVenuesRoute
   '/edit/$id': typeof EditIdRoute
   '/match/$id': typeof MatchIdRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/quick'
     | '/admin/log'
+    | '/admin/rules'
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/quick'
     | '/admin/log'
+    | '/admin/rules'
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/quick'
     | '/admin/log'
+    | '/admin/rules'
     | '/admin/venues'
     | '/edit/$id'
     | '/match/$id'
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLogRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/rules': {
+      id: '/admin/rules'
+      path: '/rules'
+      fullPath: '/admin/rules'
+      preLoaderRoute: typeof AdminRulesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/venues': {
       id: '/admin/venues'
       path: '/venues'
@@ -292,12 +311,14 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminLogRoute: typeof AdminLogRoute
+  AdminRulesRoute: typeof AdminRulesRoute
   AdminVenuesRoute: typeof AdminVenuesRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminLogRoute: AdminLogRoute,
+  AdminRulesRoute: AdminRulesRoute,
   AdminVenuesRoute: AdminVenuesRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

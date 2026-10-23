@@ -23,6 +23,8 @@ export type Action =
   | "admin.login"
   | "admin.logout"
   | "admin.player.save"
+  | "admin.rule.add"
+  | "admin.rule.remove"
   | "balls.pass";
 
 export type LogEntry = {
