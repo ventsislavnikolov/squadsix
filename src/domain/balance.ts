@@ -3,6 +3,8 @@
 // Everything the model says about a split is re-derived here before anyone sees it, so a
 // proposal on screen always carries our totals, not the model's claim about them.
 
+import { brokenRules, NO_RULES, type Rules } from "./rules";
+
 export const TEAM_SIZE = 6;
 export const SQUAD_SIZE = TEAM_SIZE * 2;
 
@@ -86,12 +88,15 @@ export function splitKey(split: Split): string {
  * The deterministic answer, used when Jev is unavailable or fails validation. Every
  * 6-of-12 split is only 462 distinct games, so we can simply try them all and keep the
  * best few that differ from each other.
+ *
+ * Rules come first: only the splits that break the fewest rule pairs are considered —
+ * none, whenever that is possible — and fairness chooses among those.
  */
-export function bestSplits(squad: Player[], count = 3): Split[] {
+export function bestSplits(squad: Player[], count = 3, rules: Rules = NO_RULES): Split[] {
   if (squad.length !== SQUAD_SIZE) return [];
   const byId = new Map(squad.map((p) => [p.id, p]));
   const [first, ...rest] = squad;
-  const candidates: { split: Split; score: SplitScore }[] = [];
+  const candidates: { split: Split; score: SplitScore; broken: number }[] = [];
 
   // Fixing the first player on team A halves the search: each game is seen once.
   for (const combo of combinations(rest, TEAM_SIZE - 1)) {
@@ -99,16 +104,24 @@ export function bestSplits(squad: Player[], count = 3): Split[] {
     const inA = new Set(teamA);
     const teamB = squad.filter((p) => !inA.has(p.id)).map((p) => p.id);
     const split = { teamA, teamB };
-    candidates.push({ split, score: scoreSplit(split, byId) });
+    candidates.push({ split, score: scoreSplit(split, byId), broken: brokenRules(split, rules) });
   }
 
-  candidates.sort((x, y) => rank(x.score) - rank(y.score));
+  const fewest = Math.min(...candidates.map((c) => c.broken));
+  const legal = candidates.filter((c) => c.broken === fewest);
+  legal.sort((x, y) => rank(x.score) - rank(y.score));
 
-  // Pick proposals that are genuinely different games, not one swap apart.
+  // Pick proposals that are genuinely different games, not one swap apart. When rules
+  // leave too few of those, settle for closer ones: fewer options than usual would
+  // give the rules away.
   const picked: Split[] = [];
-  for (const c of candidates) {
-    if (picked.every((p) => overlap(p, c.split) <= TEAM_SIZE - 2)) picked.push(c.split);
-    if (picked.length === count) break;
+  for (const most of [TEAM_SIZE - 2, TEAM_SIZE - 1]) {
+    for (const c of legal) {
+      if (picked.length === count) return picked;
+      if (!picked.includes(c.split) && picked.every((p) => overlap(p, c.split) <= most)) {
+        picked.push(c.split);
+      }
+    }
   }
   return picked;
 }

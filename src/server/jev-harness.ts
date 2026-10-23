@@ -6,6 +6,7 @@
 // RefAI splits it — the machine measures, the model judges:
 //
 //   1. measure   code enumerates every 6v6 split and keeps ~10 near-even, distinct ones
+//                that keep the admin's rules (Jev is never told there are any)
 //   2. judge     Jev scores each candidate on its own (small state, no context rot)
 //   3. compare   Jev picks the single best game out of all candidates
 //   4. decide    code combines the answers into a ranking and keeps the top three
@@ -23,6 +24,7 @@ import {
   type Split,
   type SplitScore,
 } from "@/domain/balance";
+import { brokenRules, inPlay, NO_RULES, type Rules } from "@/domain/rules";
 import { SITE } from "@/lib/preview";
 
 /** Jev as OpenRouter hosts it. */
@@ -62,7 +64,15 @@ type JevCall = {
 };
 
 export type HarnessStep =
-  | { kind: "measure"; combinations: number; candidates: number; ms: number }
+  | {
+      kind: "measure";
+      combinations: number;
+      candidates: number;
+      ms: number;
+      /** Rules binding today's twelve, and how many pairs every candidate breaks. Older runs lack them. */
+      rules?: number;
+      broken?: number;
+    }
   | ({ kind: "judge"; candidate: string } & JevCall)
   | ({ kind: "compare" } & JevCall)
   | { kind: "decide"; mode: "jev" | "fallback"; picked: string[]; ms: number }
@@ -78,25 +88,30 @@ export type HarnessResult = {
 
 /**
  * @param names what to call each player in Jev's state — English, its strongest language.
+ * @param rules who must or mustn't share a side. Applied before Jev sees anything.
  */
 export async function balanceWithJev(
   squad: Player[],
   names: Map<string, string>,
+  rules: Rules = NO_RULES,
 ): Promise<HarnessResult> {
   const byId = new Map(squad.map((p) => [p.id, p]));
   const trace: HarnessStep[] = [];
 
   let t = performance.now();
-  const candidates = bestSplits(squad, CANDIDATES).map((split, i) => ({
+  const candidates = bestSplits(squad, CANDIDATES, rules).map((split, i) => ({
     key: `c${i + 1}`,
     split,
     score: scoreSplit(split, byId),
   }));
+  const today = inPlay(rules, squad.map((p) => p.id));
   trace.push({
     kind: "measure",
     combinations: 462,
     candidates: candidates.length,
     ms: ms(t),
+    rules: today.together.length + today.apart.length,
+    broken: candidates[0] ? brokenRules(candidates[0].split, rules) : 0,
   });
 
   const adapter = jevAdapter();

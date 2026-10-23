@@ -14,6 +14,9 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted. Only the admin can ask for a new run.
 - **Lock**: ends voting. Only the admin can lock early (the game also locks itself at kick-off), and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
 - **Result**: the winner (A, B or draw) is required, and the score is optional (a full score names the winner). Only the admin enters it, after the lock; everyone else sees it.
+- **Together rule**: 2–3 players who are always put on the same team. A player is in at most one. It's permanent and applies to whichever of its players are in the 12. Admin-only, and never shown or hinted at anywhere else.
+- **Apart rule**: two players who are never put on the same team. It works both ways, and a player has at most 2 Apart partners. "Ivan apart from Petar and Georgi" is two rules, and Petar and Georgi can still play together. Permanent and admin-only, like a Together rule.
+- **Rule**: a Together or an Apart rule.
 - **Balls**: someone takes the balls home after each game. The "Топки" tab shows who has them and who had them before. Anyone who has picked their name can say "I took them"; the holder or the admin can hand them to someone. On trust, like the sign-up list, and logged.
 
 ## Decisions (2026-09-26 grilling)
@@ -48,6 +51,17 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Quick pick**: still available when nothing is announced. Time and place are optional and pre-filled, and it never acts on its own.
 - **No scheduler**: Vercel cron needs a paid plan, so the time-based steps run whenever someone opens the app (`repo.dueNow`, called from `getOpenMatch` and `getMatchday`).
 - **Players** keep their real names; there are no nicknames.
+
+## Rules (2026-10-23 grilling)
+
+- **Secret**: rules exist only on the admin's side. The match page, proposals, shares and Jev's prompts never mention them. Telling people about them would make them hated.
+- **Hard, then soft**: teams always keep every rule when that's possible. When it isn't, the teams break as few rules as possible, so the game still happens. A Together group of 3 split 2+1 counts as 2 broken, an Apart pair on one team counts as 1, and both kinds weigh the same. Fairness decides between options that break equally few. Only Jev's trace says a rule was broken.
+- **Who's playing**: a rule applies to whichever of its players are in the 12. A rule with a hidden player is kept but does nothing until that player is unhidden.
+- **Refused on save**: two players in both a Together and an Apart rule, a Together group bigger than 3, a player in two Together groups, or a player with more than 2 Apart partners. Any other impossible case is left to the soft fallback.
+- **Always three**: when the rules leave fewer than 3 clearly different games, the options are allowed to be more alike. "Only two options today" would give the rules away.
+- **Not retroactive**: a new rule applies the next time teams are made. Existing proposals are left alone.
+- **After the lock**: rules don't apply. A reserve still takes the leaver's exact place.
+- **Admin page**: rules are managed on their own admin page, and every change goes into the activity log.
 
 ## Jev
 

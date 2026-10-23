@@ -11,6 +11,7 @@ import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
 import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
 import type { Lang } from "@/domain/names";
+import { ruleProblem, TOGETHER_MAX, type RuleProblem } from "@/domain/rules";
 import { checkCredentials, endSession, isAdmin, requireAdmin, startSession } from "./auth";
 import { balanceWithJev } from "./jev-harness";
 import { logAction, readLog } from "./log";
@@ -33,7 +34,8 @@ export type ErrorCode =
   | "not-full"
   | "bad-date"
   | "guest-early"
-  | "who";
+  | "who"
+  | RuleProblem;
 
 function fail(code: ErrorCode): never {
   throw new Error(code);
@@ -461,9 +463,9 @@ async function clock(matchdayId: string) {
 }
 
 async function runBalance(matchdayId: string, trigger: "manual" | "auto") {
-  const { squad, namesEn } = await repo.squadForBalance(matchdayId);
+  const { squad, namesEn, rules } = await repo.squadForBalance(matchdayId);
   const started = performance.now();
-  const result = await balanceWithJev(squad, namesEn);
+  const result = await balanceWithJev(squad, namesEn, rules);
   await repo.saveRun(
     matchdayId,
     {
@@ -601,3 +603,41 @@ export const getLog = createServerFn({ method: "GET" }).handler(() => {
   requireAdmin();
   return readLog();
 });
+
+/* ------------------------------------------------------------------------ rules -- */
+
+export const getRules = createServerFn({ method: "GET" }).handler(() => {
+  requireAdmin();
+  return repo.listRules();
+});
+
+export const addRule = createServerFn({ method: "POST" })
+  .validator(
+    z
+      .object({
+        kind: z.enum(["together", "apart"]),
+        players: z.array(z.uuid()).min(2).max(TOGETHER_MAX),
+      })
+      .refine((r) => new Set(r.players).size === r.players.length)
+      .refine((r) => r.kind === "together" || r.players.length === 2),
+  )
+  .handler(async ({ data }) => {
+    requireAdmin();
+    const problem = ruleProblem(repo.toRules(await repo.listRules()), data);
+    if (problem) {
+      await logAction({ action: "admin.rule.add", ok: false, actor: "admin", detail: { ...data, problem } });
+      fail(problem);
+    }
+    const saved = await repo.addRule(data.kind, data.players);
+    await logAction({ action: "admin.rule.add", actor: "admin", detail: { id: saved.id, ...data } });
+    return saved;
+  });
+
+export const removeRule = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    requireAdmin();
+    const ok = await repo.removeRule(data.id);
+    await logAction({ action: "admin.rule.remove", ok, actor: "admin", detail: { id: data.id } });
+    if (!ok) fail("not-found");
+  });

@@ -10,7 +10,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 const bg = {
   appTag: "отбори за ритане",
-  nav: { newMatch: "Нов мач", match: "Мач", venues: "Места", history: "История", balls: "Топки", players: "Играчи", log: "Лог", signIn: "Вход", signOut: "Изход" },
+  nav: { newMatch: "Нов мач", match: "Мач", venues: "Места", history: "История", balls: "Топки", players: "Играчи", rules: "Правила", log: "Лог", signIn: "Вход", signOut: "Изход" },
   theme: { system: "Системна", light: "Светла", dark: "Тъмна", label: "Тема" },
   lang: { label: "Език", other: "EN" },
   common: {
@@ -233,6 +233,8 @@ const bg = {
     decideFallback: "Без Jev: взимат се трите с най-малка разлика",
     error: "Jev върна грешка",
     measureDetail: (n: number) => `${n} кандидата към Jev. Всички са 6 на 6 и са проверени от кода.`,
+    measureRules: (n: number, broken: number) =>
+      `Правила за днешните 12: ${n}. ${broken === 0 ? "Всички са спазени." : `Не може всички: нарушени ${broken}, по-малко не става.`}`,
     picked: "избрани",
     tokens: "токена",
     whatJevSaw: "Какво видя Jev (state + въпроси)",
@@ -297,6 +299,20 @@ const bg = {
     mapUrl: "Линк към карта",
     hidden: "Скрито",
   },
+  rules: {
+    title: "Правила",
+    lead: "Кой с кого да играе. Виждаш ги само ти и никъде другаде не се споменават, нито пред Jev. Отборите винаги ги спазват, а ако днес не може, нарушават възможно най-малко.",
+    together: "Заедно",
+    togetherNote: "2 или 3 души, винаги в един отбор. Всеки е в най-много една група.",
+    apart: "Разделени",
+    apartNote: "Двама, никога в един отбор. Всеки има най-много двама такива.",
+    empty: "Няма правила.",
+    pick: "Избери",
+    optional: "трети (по желание)",
+    add: "Добави",
+    remove: "Махни",
+    hidden: "скрит",
+  },
   log: {
     title: "Лог",
     lead: "Всяко действие, и отказаните. Пази се 90 дни.",
@@ -320,6 +336,10 @@ const bg = {
     "not-full": "Трябват 12 души.",
     "bad-date": "Денят трябва да е от днес до 14 дни напред, а часът още да не е минал.",
     who: "Първо избери кой си.",
+    "rule-exists": "Това правило вече го има.",
+    "rule-taken": "Някой от тях вече е в група „Заедно“.",
+    "rule-limit": "Някой от двамата вече е разделен от двама души.",
+    "rule-conflict": "Това противоречи на друго правило: едни и същи хора хем заедно, хем разделени.",
     generic: "Нещо се обърка. Опитай пак.",
   } satisfies Record<ErrorCode | "generic", string>,
 };
@@ -328,7 +348,7 @@ type Dict = typeof bg;
 
 const en: Dict = {
   appTag: "teams for the kickabout",
-  nav: { newMatch: "New game", match: "Game", venues: "Venues", history: "History", balls: "Balls", players: "Players", log: "Log", signIn: "Sign in", signOut: "Sign out" },
+  nav: { newMatch: "New game", match: "Game", venues: "Venues", history: "History", balls: "Balls", players: "Players", rules: "Rules", log: "Log", signIn: "Sign in", signOut: "Sign out" },
   theme: { system: "System", light: "Light", dark: "Dark", label: "Theme" },
   lang: { label: "Language", other: "БГ" },
   common: {
@@ -549,6 +569,8 @@ const en: Dict = {
     decideFallback: "Without Jev: the three with the smallest gap",
     error: "Jev returned an error",
     measureDetail: (n) => `${n} candidates sent to Jev. All are 6-a-side and checked by the code.`,
+    measureRules: (n, broken) =>
+      `Rules binding today's 12: ${n}. ${broken === 0 ? "All kept." : `They can't all hold: ${broken} broken, the fewest possible.`}`,
     picked: "picked",
     tokens: "tokens",
     whatJevSaw: "What Jev saw (state + questions)",
@@ -613,6 +635,20 @@ const en: Dict = {
     mapUrl: "Map link",
     hidden: "Hidden",
   },
+  rules: {
+    title: "Rules",
+    lead: "Who plays with whom. Only you see these, and nothing else mentions them, Jev included. Teams always keep them, and when a day makes that impossible, break as few as they can.",
+    together: "Together",
+    togetherNote: "2 or 3 people, always on the same team. Each person is in at most one group.",
+    apart: "Apart",
+    apartNote: "Two people, never on the same team. Each person has at most two of these.",
+    empty: "No rules.",
+    pick: "Pick",
+    optional: "third (optional)",
+    add: "Add",
+    remove: "Remove",
+    hidden: "hidden",
+  },
   log: {
     title: "Log",
     lead: "Every action, refusals included. Kept for 90 days.",
@@ -636,6 +672,10 @@ const en: Dict = {
     "not-full": "Needs twelve people.",
     "bad-date": "Pick a day from today to 14 days ahead, at a time that hasn't passed.",
     who: "Pick who you are first.",
+    "rule-exists": "That rule already exists.",
+    "rule-taken": "One of them is already in a Together group.",
+    "rule-limit": "One of the two is already kept apart from two people.",
+    "rule-conflict": "That contradicts another rule: the same people both together and apart.",
     generic: "Something went wrong. Try again.",
   },
 };
