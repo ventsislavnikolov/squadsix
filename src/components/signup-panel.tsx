@@ -344,7 +344,9 @@ function AddOther({ day, onDone }: { day: MatchdayView; onDone: () => unknown })
     },
   });
 
-  const q = filter.trim().toLocaleLowerCase();
+  // A typed guest name filters the list too, so someone already on it shows up instead of
+  // being added twice.
+  const q = (filter.trim() || guest.trim()).toLocaleLowerCase();
   const candidates = roster.filter(
     (p) =>
       !onList.has(p.id) &&

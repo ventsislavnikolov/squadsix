@@ -127,6 +127,19 @@ export function nameFromInput(input: string): PersonName {
   return { firstBg: enToBg(first), lastBg: enToBg(last), firstEn: first, lastEn: last };
 }
 
+/**
+ * Which known guest a typed name means: the one with the same full name, or, when only a
+ * first name was typed, the one guest with that first name. Typing "Велислав" for
+ * "Велислав Кунев" must not make a second Велислав.
+ */
+export function findGuest<T extends PersonName>(guests: T[], typed: PersonName): T | undefined {
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const full = guests.find((g) => same(g.firstEn, typed.firstEn) && same(g.lastEn, typed.lastEn));
+  if (full || typed.lastEn) return full;
+  const byFirst = guests.filter((g) => same(g.firstEn, typed.firstEn));
+  return byFirst.length === 1 ? byFirst[0] : undefined;
+}
+
 function matchCase(source: string, target: string): string {
   const upper = source !== source.toLocaleLowerCase() && source === source.toLocaleUpperCase();
   return upper ? target.charAt(0).toLocaleUpperCase() + target.slice(1) : target;

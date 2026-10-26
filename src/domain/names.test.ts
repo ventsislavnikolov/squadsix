@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bgToEn, enToBg, nameFromInput, shortNames } from "./names";
+import { bgToEn, enToBg, findGuest, nameFromInput, shortNames } from "./names";
 
 const p = (id: string, firstBg: string, lastBg: string, firstEn: string, lastEn: string) => ({
   id,
@@ -67,5 +67,30 @@ describe("transliteration", () => {
       firstEn: "Georgi",
       lastEn: "",
     });
+  });
+});
+
+describe("findGuest", () => {
+  const guests = [
+    p("1", "Велислав", "Кунев", "Velislav", "Kunev"),
+    p("2", "Атанас", "(Станислав)", "Atanas", "(Stanislav)"),
+    p("3", "Иван", "Петров", "Ivan", "Petrov"),
+    p("4", "Иван", "Георгиев", "Ivan", "Georgiev"),
+  ];
+
+  it("finds a guest by the full name, in either script and any case", () => {
+    expect(findGuest(guests, nameFromInput("Велислав Кунев"))?.id).toBe("1");
+    expect(findGuest(guests, nameFromInput("velislav kunev"))?.id).toBe("1");
+  });
+
+  it("finds the only guest with a first name when just that was typed", () => {
+    expect(findGuest(guests, nameFromInput("Велислав"))?.id).toBe("1");
+    expect(findGuest(guests, nameFromInput("Atanas"))?.id).toBe("2");
+  });
+
+  it("finds nobody when the first name is shared or the surname differs", () => {
+    expect(findGuest(guests, nameFromInput("Иван"))).toBeUndefined();
+    expect(findGuest(guests, nameFromInput("Велислав Иванов"))).toBeUndefined();
+    expect(findGuest(guests, nameFromInput("Мартин"))).toBeUndefined();
   });
 });

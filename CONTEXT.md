@@ -6,7 +6,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 
 - **Player**: someone on the list. Has a name in both scripts (`first_bg/last_bg`, `first_en/last_en`).
 - **Short name**: what's shown. It's the first name, plus the surname's initial when two players share a first name ("Ивайло В.", "Ивайло П."). It's computed and never stored (`src/domain/names.ts`).
-- **Guest**: a player from outside the office. The name is typed once in either script, and the other script is transliterated. Guests who haven't played for 60 days drop off the pick list but are not deleted.
+- **Guest**: a player from outside the office. The name is typed once in either script, and the other script is transliterated. Guests who haven't played for 60 days drop off the pick list but are not deleted. Typing a known guest's name reuses that guest instead of adding a new one; a first name alone is enough when only one guest has it.
 - **Rating**: 1.0–5.0 in half steps, set by the admin. `null` means unrated and counts as 2.5. Only the admin ever receives ratings from the server.
 - **Hidden**: can't be picked, but stays in old games. Players are hidden, never deleted.
 - **Matchday**: one game day. There's at most one per calendar day (Sofia time), always with exactly 12 players.

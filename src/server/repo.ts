@@ -4,7 +4,7 @@
 
 import { SQUAD_SIZE, type Player } from "@/domain/balance";
 import type { Rules } from "@/domain/rules";
-import { nameFromInput, shortNames, type PersonName, type ShortName } from "@/domain/names";
+import { findGuest, nameFromInput, shortNames, type PersonName, type ShortName } from "@/domain/names";
 import { hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "@/domain/signup";
 import { sql } from "./db";
 import type { HarnessStep, Verdict } from "./jev-harness";
@@ -100,14 +100,14 @@ export async function fullRoster(): Promise<RosterPlayer[]> {
   return toRoster(await playerRows(), true);
 }
 
-/** A guest's name, typed once in either script. Reuses (and un-hides) a guest of the same name. */
+/** A guest's name, typed once in either script. Reuses (and un-hides) a guest it matches. */
 export async function addGuest(input: string): Promise<{ id: string }> {
   const n = nameFromInput(input);
-  const [existing] = await sql`
-    update players set hidden = false
-    where is_guest and lower(first_en) = lower(${n.firstEn}) and lower(last_en) = lower(${n.lastEn})
-    returning id`;
-  if (existing) return { id: String(existing.id) };
+  const existing = findGuest((await playerRows()).filter((r) => r.isGuest), n);
+  if (existing) {
+    await sql`update players set hidden = false where id = ${existing.id}`;
+    return { id: existing.id };
+  }
   const [row] = await sql`
     insert into players (first_bg, last_bg, first_en, last_en, rating, is_guest)
     values (${n.firstBg}, ${n.lastBg}, ${n.firstEn}, ${n.lastEn}, null, true)
