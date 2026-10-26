@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/ventsislavnikolov/squadsix/compare/v1.1.0...v1.1.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* reload onto the new build when an old tab opens a page ([9de6dbc](https://github.com/ventsislavnikolov/squadsix/commit/9de6dbc8b0b481bcd5f6e8888f3157b902cb806c))
+
 # [1.1.0](https://github.com/ventsislavnikolov/squadsix/compare/v1.0.0...v1.1.0) (2026-10-26)
 
 
