@@ -1,5 +1,17 @@
 # Changelog
 
+# [1.1.0](https://github.com/ventsislavnikolov/squadsix/compare/v1.0.0...v1.1.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* reuse a known guest instead of adding a second one ([0b988ad](https://github.com/ventsislavnikolov/squadsix/commit/0b988ada90885a7122cc16ab3fc81df947ec78e7))
+
+
+### Features
+
+* Together and Apart rules for making teams ([cca8e0b](https://github.com/ventsislavnikolov/squadsix/commit/cca8e0ba2fcdd9a81411927f667457b7581e3472))
+
 # 1.0.0 (2026-10-13)
 
 
