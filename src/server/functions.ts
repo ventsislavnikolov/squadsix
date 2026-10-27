@@ -327,7 +327,7 @@ export const withdraw = createServerFn({ method: "POST" })
     await afterListChange(data.matchdayId);
   });
 
-/** "Make the teams" — once twelve are in. Counts as one of the three tries. */
+/** "Make the teams" — once twelve are in. Counts as one of the three tries (the admin has no limit). */
 export const makeTeams = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
@@ -341,7 +341,7 @@ export const makeTeams = createServerFn({ method: "POST" })
           ? "not-full"
           : info.hasTeams
             ? "exists"
-            : info.runs >= repo.MAX_RUNS_PER_MATCHDAY
+            : info.runs >= repo.MAX_RUNS_PER_MATCHDAY && !isAdmin()
               ? "run-limit"
               : null;
     if (refusal) {
@@ -351,7 +351,7 @@ export const makeTeams = createServerFn({ method: "POST" })
     await runBalance(data.id, "manual");
   });
 
-/** Ask Jev again. Admin only, while open, at most three runs. Votes already cast are dropped. */
+/** Ask Jev again. Admin only, while open, as often as they like. Votes already cast are dropped. */
 export const rebalance = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
@@ -365,9 +365,7 @@ export const rebalance = createServerFn({ method: "POST" })
           ? "locked"
           : state.squad !== SQUAD_SIZE
             ? "not-full"
-            : state.runs >= repo.MAX_RUNS_PER_MATCHDAY
-              ? "run-limit"
-              : null;
+            : null;
     if (refusal) {
       await logAction({ action: "balance.run", ok: false, matchdayId: data.id, detail: { refusal } });
       fail(refusal);

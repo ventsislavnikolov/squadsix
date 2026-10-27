@@ -77,8 +77,6 @@ export const Route = createFileRoute("/match/$id")({
   pendingComponent: MatchSkeleton,
 });
 
-const MAX_RUNS = 3;
-
 /**
  * One game, start to finish, on one page: the announcement and its list, then — once
  * there are teams — the three options and the vote, then the result.
@@ -135,8 +133,7 @@ function MatchPage() {
   const myVote = day.votes.find((v) => v.playerId === me)?.proposalId;
   const voted = new Set(day.votes.map((v) => v.playerId));
   const notVoted = day.squad.filter((pid) => !voted.has(pid)).map((pid) => byId.get(pid));
-  const runsLeft = MAX_RUNS - day.runsUsed;
-  const canRebalance = !locked && runsLeft > 0 && day.squad.length === 12;
+  const canRebalance = !locked && day.squad.length === 12;
 
   const chosen = day.proposals.find((p) => p.id === day.lockedProposalId);
   // Who would win if locked now — same rule as the server: most votes, then Jev's order.
@@ -162,7 +159,6 @@ function MatchPage() {
     <>
       {again.isPending ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
       {t.match.again}
-      <span className="font-mono text-[11px] text-fg/45">{t.match.againLeft(runsLeft)}</span>
     </>
   );
 
@@ -207,7 +203,6 @@ function MatchPage() {
                   <Button
                     variant="outline"
                     disabled={!canRebalance || again.isPending}
-                    title={t.match.againHint(runsLeft)}
                     onClick={() => again.mutate()}
                   >
                     {againLabel}

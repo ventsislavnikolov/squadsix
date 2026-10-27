@@ -267,8 +267,6 @@ export type MatchdayView = {
   /** The twelve (or fewer) currently in. */
   squad: string[];
   run: RunView | null;
-  /** Tries people used; the app's own re-dos don't count. */
-  runsUsed: number;
   proposals: ProposalView[];
   votes: { playerId: string; proposalId: string }[];
 };
@@ -590,8 +588,7 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
     select m.id, m.kind, m.played_on::text, m.starts_at::text, m.note, m.created_by,
            m.changes, m.changed_at::text, m.cancelled_at::text, m.cancel_reason,
            m.locked_at::text, m.locked_proposal_id, m.winner, m.score_a, m.score_b,
-           v.id as venue_id, v.name as venue_name, v.map_url as venue_map,
-           (select count(*) from balance_runs r where r.matchday_id = m.id and r.trigger = 'manual') as runs
+           v.id as venue_id, v.name as venue_name, v.map_url as venue_map
     from matchdays m left join venues v on v.id = m.venue_id
     where m.id = ${id}`;
   if (!day) return null;
@@ -688,7 +685,6 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
     signups,
     squad,
     run,
-    runsUsed: Number(day.runs),
     proposals,
     votes: votes.map((v) => ({ playerId: String(v.player_id), proposalId: String(v.proposal_id) })),
   };

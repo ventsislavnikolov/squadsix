@@ -11,7 +11,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
 - **Hidden**: can't be picked, but stays in old games. Players are hidden, never deleted.
 - **Matchday**: one game day. There's at most one per calendar day (Sofia time), always with exactly 12 players.
 - **Proposal**: one of three candidate splits. Position 1 is Jev's first choice.
-- **Run**: one harness execution (`balance_runs`). There are at most 3 per matchday, and a new run is only allowed before anyone has voted. Only the admin can ask for a new run.
+- **Run**: one harness execution (`balance_runs`). Without the admin there are at most 3 per matchday; since 2026-10-27 the admin has no limit. A new run is only allowed before anyone has voted. Only the admin can ask for a new run.
 - **Lock**: ends voting. Only the admin can lock early (the game also locks itself at kick-off), and the proposal with the most votes wins. A tie goes to the lower position. Only the admin can unlock.
 - **Result**: the winner (A, B or draw) is required, and the score is optional (a full score names the winner). Only the admin enters it, after the lock; everyone else sees it.
 - **Together rule**: 2–3 players who are always put on the same team. A player is in at most one. It's permanent and applies to whichever of its players are in the 12. Admin-only, and never shown or hinted at anywhere else.
@@ -28,7 +28,7 @@ Picks fair 6-a-side teams for the office game. The words below are the ones the 
    - no new game while any game is still open (unlocked), whatever day it was made; "/" redirects to it
    - one game a day
    - new options only while there are 0 votes
-   - Jev runs at most 3 times per game
+   - Jev runs at most 3 times per game, except for the admin (since 2026-10-27)
    - locked games are frozen
 5. There's an activity log of every action, refusals included, with IP and user agent. It's kept for 90 days and is admin-only.
 6. Anyone can share to Messenger (share sheet or clipboard): the announcement before the lock, the teams after it.

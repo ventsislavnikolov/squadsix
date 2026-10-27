@@ -178,8 +178,6 @@ const bg = {
     leadOpen: "Гласуват само 12-те, които играят. Един глас на човек, ако гласуваш пак, гласът ти се мести.",
     leadLocked: "Спечели вариантът с най-много гласове. При равенство печели първият.",
     again: "Нови варианти",
-    againHint: (left: number) => `Остават ${left} от 3 опита.`,
-    againLeft: (left: number) => (left === 1 ? "остава 1" : `остават ${left}`),
     againTitle: "Нови варианти?",
     againBody: (votes: number) =>
       `Вече има ${plural(votes, "глас", "гласа")}. Те се изтриват и всички гласуват наново.`,
@@ -514,8 +512,6 @@ const en: Dict = {
     leadOpen: "Only the 12 playing vote. One vote each; voting again moves your vote.",
     leadLocked: "The option with the most votes won. A tie goes to the first one.",
     again: "New options",
-    againHint: (left) => `${left} of 3 tries left.`,
-    againLeft: (left) => `${left} left`,
     againTitle: "New options?",
     againBody: (votes) =>
       `There ${votes === 1 ? "is" : "are"} already ${plural(votes, "vote", "votes")}. They are cleared and everyone votes again.`,
