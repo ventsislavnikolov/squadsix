@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.2.0](https://github.com/ventsislavnikolov/squadsix/compare/v1.1.1...v1.2.0) (2026-10-27)
+
+
+### Features
+
+* no limit on new team options for the admin ([9e634d0](https://github.com/ventsislavnikolov/squadsix/commit/9e634d0348bbf7c71a124044cf08c6647abe0a74))
+
 ## [1.1.1](https://github.com/ventsislavnikolov/squadsix/compare/v1.1.0...v1.1.1) (2026-10-26)
 
 
