@@ -5,7 +5,7 @@
 // the reader's language. Every action — refused or not — goes to the activity log.
 
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
+import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
 import { type Coords, GAME_SECONDS, NOWCAST_SECONDS, type Nowcast, SOFIA } from "@/lib/weather";
 import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
@@ -50,18 +50,45 @@ const RATING = z
 
 /* --------------------------------------------------------------------- session -- */
 
-/** `crawler`: a link-preview fetcher (Messenger and the like), which reads only the head. */
-export type Session = { lang: Lang; isAdmin: boolean; crawler: boolean };
+/**
+ * `crawler`: a link-preview fetcher (Messenger and the like), which reads only the head.
+ * `me`: the player picked on this phone, from the cookie copy of that choice ("" if none).
+ */
+export type Session = { lang: Lang; isAdmin: boolean; crawler: boolean; me: string };
 
 const CRAWLER = /bot|crawl|spider|facebookexternalhit|whatsapp|telegram|viber|slack|discord|preview/i;
 
-export const getSession = createServerFn({ method: "GET" }).handler(
-  (): Session => ({
+export const getSession = createServerFn({ method: "GET" }).handler((): Session => {
+  const me = getCookie(ME_COOKIE) ?? "";
+  return {
     lang: getCookie("s6_lang") === "en" ? "en" : "bg",
     isAdmin: isAdmin(),
     crawler: CRAWLER.test(getRequestHeader("user-agent") ?? ""),
-  }),
-);
+    me: UUID.test(me) ? me : "",
+  };
+});
+
+// Who's holding this phone is kept in localStorage, and again in this cookie. In-app
+// browsers (Messenger, Instagram) are quick to drop localStorage, but they keep a cookie
+// the server set, the same way they keep the language.
+const ME_COOKIE = "s6_me";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const rememberMe = createServerFn({ method: "POST" })
+  .validator(z.object({ playerId: z.union([z.string().uuid(), z.literal("")]) }))
+  .handler(({ data }) => {
+    if (data.playerId) {
+      // 400 days is the longest a browser will keep a cookie.
+      setCookie(ME_COOKIE, data.playerId, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 400,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    } else {
+      deleteCookie(ME_COOKIE, { path: "/" });
+    }
+  });
 
 export const setLang = createServerFn({ method: "POST" })
   .validator(z.object({ lang: z.enum(["bg", "en"]) }))

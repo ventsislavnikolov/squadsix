@@ -1,10 +1,18 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { rememberMe, type Session } from "@/server/functions";
+import { sessionQuery } from "./queries";
 
 // Who is holding this phone: a player id, remembered per browser. There is no sign-in for
 // players in v1 — picking your name is on trust, and the log records every vote.
+//
+// It's kept twice: in localStorage, and in a cookie the server sets (`session.me`).
+// Messenger's in-app browser forgets localStorage between opens but keeps the cookie, so
+// the cookie is the fallback, and whichever copy survived restores the other.
 
 const KEY = "s6-me";
 const listeners = new Set<() => void>();
+let synced = false;
 
 function read(): string {
   try {
@@ -14,21 +22,47 @@ function read(): string {
   }
 }
 
+function write(playerId: string) {
+  try {
+    if (playerId) localStorage.setItem(KEY, playerId);
+    else localStorage.removeItem(KEY);
+  } catch {
+    /* private mode — the cookie still remembers */
+  }
+}
+
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
 }
 
 export function useMe(): [string, (playerId: string) => void] {
-  const me = useSyncExternalStore(subscribe, read, () => "");
-  const setMe = useCallback((playerId: string) => {
-    try {
-      if (playerId) localStorage.setItem(KEY, playerId);
-      else localStorage.removeItem(KEY);
-    } catch {
-      /* private mode — the choice just won't be remembered */
-    }
-    listeners.forEach((l) => l());
-  }, []);
+  const qc = useQueryClient();
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const cookie = session.me;
+  const me = useSyncExternalStore(
+    subscribe,
+    () => read() || cookie,
+    () => cookie,
+  );
+
+  // Once per page load, copy whichever store still has the choice into the other one.
+  useEffect(() => {
+    if (synced) return;
+    synced = true;
+    const local = read();
+    if (!local && cookie) write(cookie);
+    else if (local && local !== cookie) void rememberMe({ data: { playerId: local } }).catch(() => {});
+  }, [cookie]);
+
+  const setMe = useCallback(
+    (playerId: string) => {
+      write(playerId);
+      qc.setQueryData<Session>(sessionQuery.queryKey, (s) => (s ? { ...s, me: playerId } : s));
+      void rememberMe({ data: { playerId } }).catch(() => {});
+      listeners.forEach((l) => l());
+    },
+    [qc],
+  );
   return [me, setMe];
 }
