@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/ventsislavnikolov/squadsix/compare/v1.2.0...v1.2.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* remember the picked name in Messenger's browser ([f62df5c](https://github.com/ventsislavnikolov/squadsix/commit/f62df5cef62603ab0515cc6af639d7ecd2b0d2eb))
+
 # [1.2.0](https://github.com/ventsislavnikolov/squadsix/compare/v1.1.1...v1.2.0) (2026-10-27)
 
 
