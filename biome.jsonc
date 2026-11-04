@@ -9,6 +9,9 @@
     "ultracite/biome/tanstack",
     "ultracite/biome/vitest"
   ],
+  // Class sorting reads the theme, so the app's own colors (`text-fg/45`)
+  // sort as the utilities they are.
+  "tailwind": { "stylesheet": "./src/styles.css" },
   "files": {
     "includes": ["!public"]
   }
