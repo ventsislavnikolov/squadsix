@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { bgToEn, enToBg, findGuest, nameFromInput, shortNames } from "./names";
 
-const p = (id: string, firstBg: string, lastBg: string, firstEn: string, lastEn: string) => ({
+const p = (
+  id: string,
+  firstBg: string,
+  lastBg: string,
+  firstEn: string,
+  lastEn: string
+) => ({
   id,
   firstBg,
   lastBg,
@@ -26,8 +32,8 @@ describe("shortNames", () => {
       p("1", "Тодор", "Петров", "Todd", "Petrov"),
       p("2", "Тодор", "Иванов", "Todor", "Ivanov"),
     ]);
-    expect(names.get("1")!.en).toBe("Todd P.");
-    expect(names.get("2")!.en).toBe("Todor I.");
+    expect(names.get("1")?.en).toBe("Todd P.");
+    expect(names.get("2")?.en).toBe("Todor I.");
   });
 
   it("falls back to the full surname when initials clash too", () => {
@@ -35,8 +41,17 @@ describe("shortNames", () => {
       p("1", "Иво", "Петров", "Ivo", "Petrov"),
       p("2", "Иво", "Павлов", "Ivo", "Pavlov"),
     ]);
-    expect(names.get("1")!.bg).toBe("Иво Петров");
-    expect(names.get("2")!.bg).toBe("Иво Павлов");
+    expect(names.get("1")?.bg).toBe("Иво Петров");
+    expect(names.get("2")?.bg).toBe("Иво Павлов");
+  });
+
+  it("keeps the first name alone when a clashing guest has no surname", () => {
+    const names = shortNames([
+      p("1", "Мартин", "", "Martin", ""),
+      p("2", "Мартин", "Иванов", "Martin", "Ivanov"),
+    ]);
+    expect(names.get("1")).toEqual({ bg: "Мартин", en: "Martin" });
+    expect(names.get("2")).toEqual({ bg: "Мартин И.", en: "Martin I." });
   });
 });
 
@@ -52,6 +67,11 @@ describe("transliteration", () => {
     expect(enToBg("Ivaylo")).toBe("Ивайло");
     expect(enToBg("Georgi")).toBe("Георги");
     expect(enToBg("Martin")).toBe("Мартин");
+  });
+
+  it("keeps what is not a Latin letter as typed", () => {
+    expect(enToBg("Ivo 2-ri")).toBe("Иво 2-ри");
+    expect(enToBg("Иво")).toBe("Иво");
   });
 
   it("splits a typed guest name into both scripts", () => {

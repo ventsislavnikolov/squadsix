@@ -6,7 +6,9 @@ import { sessionQuery } from "@/lib/queries";
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.ensureQueryData(sessionQuery);
-    if (!session.isAdmin) throw redirect({ to: "/login" });
+    if (!session.isAdmin) {
+      throw redirect({ to: "/login" });
+    }
   },
   component: Outlet,
 });

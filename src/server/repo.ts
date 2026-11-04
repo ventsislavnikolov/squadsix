@@ -2,10 +2,22 @@
 // (numerics as strings); this file is where they become typed values — and where ratings
 // are dropped for anyone who is not the admin. Nothing above this layer decides that.
 
-import { SQUAD_SIZE, type Player } from "@/domain/balance";
+import { type Player, SQUAD_SIZE } from "@/domain/balance";
+import {
+  findGuest,
+  nameFromInput,
+  type PersonName,
+  type ShortName,
+  shortNames,
+} from "@/domain/names";
 import type { Rules } from "@/domain/rules";
-import { findGuest, nameFromInput, shortNames, type PersonName, type ShortName } from "@/domain/names";
-import { hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "@/domain/signup";
+import {
+  hasStarted,
+  orderSignups,
+  patchLockedTeams,
+  splitSquad,
+  teamsDue,
+} from "@/domain/signup";
 import { sql } from "./db";
 import type { HarnessStep, Verdict } from "./jev-harness";
 
@@ -24,17 +36,17 @@ type PlayerRow = PersonName & {
   lastPlayed: string | null;
 };
 
-export type RosterPlayer = {
-  id: string;
-  name: ShortName;
-  isGuest: boolean;
-  hidden: boolean;
-  lastPlayed: string | null;
-  /** Present only for the admin. `null` = not rated yet. */
-  rating?: number | null;
+export interface RosterPlayer {
   /** Present only for the admin — the full name in both scripts, for editing. */
   full?: PersonName;
-};
+  hidden: boolean;
+  id: string;
+  isGuest: boolean;
+  lastPlayed: string | null;
+  name: ShortName;
+  /** Present only for the admin. `null` = not rated yet. */
+  rating?: number | null;
+}
 
 async function playerRows(): Promise<PlayerRow[]> {
   const rows = await sql`
@@ -58,6 +70,26 @@ async function playerRows(): Promise<PlayerRow[]> {
   }));
 }
 
+type Row = Record<string, unknown>;
+
+/** The one row a query always returns, such as `insert … returning id`. */
+function oneRow(rows: Row[]): Row {
+  const [row] = rows;
+  if (!row) {
+    throw new Error("The query returned no row");
+  }
+  return row;
+}
+
+/** A player's short name; `names` comes from the same rows, so it is always there. */
+function nameOf(names: Map<string, ShortName>, id: string): ShortName {
+  const name = names.get(id);
+  if (!name) {
+    throw new Error(`No short name for player ${id}`);
+  }
+  return name;
+}
+
 function toRoster(rows: PlayerRow[], admin: boolean): RosterPlayer[] {
   // Short names are deduplicated across everyone, hidden included, so a name never
   // changes just because someone was hidden or came back.
@@ -66,33 +98,43 @@ function toRoster(rows: PlayerRow[], admin: boolean): RosterPlayer[] {
     .map((r) => {
       const view: RosterPlayer = {
         id: r.id,
-        name: names.get(r.id)!,
+        name: nameOf(names, r.id),
         isGuest: r.isGuest,
         hidden: r.hidden,
         lastPlayed: r.lastPlayed,
       };
       if (admin) {
         view.rating = r.rating;
-        view.full = { firstBg: r.firstBg, lastBg: r.lastBg, firstEn: r.firstEn, lastEn: r.lastEn };
+        view.full = {
+          firstBg: r.firstBg,
+          lastBg: r.lastBg,
+          firstEn: r.firstEn,
+          lastEn: r.lastEn,
+        };
       }
       return view;
     })
-    .sort((a, b) => Number(a.isGuest) - Number(b.isGuest) || a.name.bg.localeCompare(b.name.bg, "bg"));
+    .sort(
+      (a, b) =>
+        Number(a.isGuest) - Number(b.isGuest) ||
+        a.name.bg.localeCompare(b.name.bg, "bg")
+    );
 }
 
 /** Who can be picked today: visible regulars, and guests seen in the last 60 days. */
 export async function pickList(admin: boolean): Promise<RosterPlayer[]> {
   const rows = await playerRows();
   const cutoff = Date.now() - GUEST_FRESH_DAYS * 86_400_000;
-  const all = toRoster(rows, admin);
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  return all.filter((p) => {
-    if (p.hidden) return false;
-    if (!p.isGuest) return true;
-    const row = byId.get(p.id)!;
-    const seen = Date.parse(row.lastPlayed ?? row.createdAt);
-    return seen >= cutoff;
-  });
+  const pickable = new Set(
+    rows
+      .filter(
+        (r) =>
+          !r.hidden &&
+          (!r.isGuest || Date.parse(r.lastPlayed ?? r.createdAt) >= cutoff)
+      )
+      .map((r) => r.id)
+  );
+  return toRoster(rows, admin).filter((p) => pickable.has(p.id));
 }
 
 /** Everyone, hidden included — the admin screen. */
@@ -103,16 +145,21 @@ export async function fullRoster(): Promise<RosterPlayer[]> {
 /** A guest's name, typed once in either script. Reuses (and un-hides) a guest it matches. */
 export async function addGuest(input: string): Promise<{ id: string }> {
   const n = nameFromInput(input);
-  const existing = findGuest((await playerRows()).filter((r) => r.isGuest), n);
+  const existing = findGuest(
+    (await playerRows()).filter((r) => r.isGuest),
+    n
+  );
   if (existing) {
     await sql`update players set hidden = false where id = ${existing.id}`;
     return { id: existing.id };
   }
-  const [row] = await sql`
+  const row = oneRow(
+    await sql`
     insert into players (first_bg, last_bg, first_en, last_en, rating, is_guest)
     values (${n.firstBg}, ${n.lastBg}, ${n.firstEn}, ${n.lastEn}, null, true)
-    returning id`;
-  return { id: String(row!.id) };
+    returning id`
+  );
+  return { id: String(row.id) };
 }
 
 export type PlayerInput = PersonName & {
@@ -130,11 +177,13 @@ export async function savePlayer(p: PlayerInput): Promise<{ id: string }> {
       where id = ${p.id}`;
     return { id: p.id };
   }
-  const [row] = await sql`
+  const row = oneRow(
+    await sql`
     insert into players (first_bg, last_bg, first_en, last_en, rating, is_guest, hidden)
     values (${p.firstBg}, ${p.lastBg}, ${p.firstEn}, ${p.lastEn}, ${p.rating}, ${p.isGuest}, ${p.hidden})
-    returning id`;
-  return { id: String(row!.id) };
+    returning id`
+  );
+  return { id: String(row.id) };
 }
 
 /** "Иво Иванов" — for the activity log, which only the admin reads. */
@@ -144,13 +193,18 @@ export async function isGuest(id: string): Promise<boolean> {
 }
 
 export async function playerLabel(id: string): Promise<string> {
-  const [row] = await sql`select first_bg, last_bg from players where id = ${id}`;
+  const [row] =
+    await sql`select first_bg, last_bg from players where id = ${id}`;
   return row ? `${row.first_bg} ${row.last_bg}`.trim() : id;
 }
 
 /* ------------------------------------------------------------------------ rules -- */
 
-export type RuleView = { id: string; kind: "together" | "apart"; players: string[] };
+export interface RuleView {
+  id: string;
+  kind: "together" | "apart";
+  players: string[];
+}
 
 /** Every Together and Apart rule. Admin-only, like ratings — never part of a public view. */
 export async function listRules(): Promise<RuleView[]> {
@@ -163,17 +217,30 @@ export async function listRules(): Promise<RuleView[]> {
   }));
 }
 
+/** An Apart rule's two players; a row without both binds nobody. */
+function pairOf(players: string[]): [string, string][] {
+  const [a, b] = players;
+  return a && b ? [[a, b]] : [];
+}
+
 export function toRules(list: RuleView[]): Rules {
   return {
     together: list.filter((r) => r.kind === "together").map((r) => r.players),
-    apart: list.filter((r) => r.kind === "apart").map((r) => [r.players[0]!, r.players[1]!]),
+    apart: list
+      .filter((r) => r.kind === "apart")
+      .flatMap((r) => pairOf(r.players)),
   };
 }
 
-export async function addRule(kind: RuleView["kind"], players: string[]): Promise<{ id: string }> {
-  const [row] = await sql`
-    insert into team_rules (kind, players) values (${kind}, ${players}::uuid[]) returning id`;
-  return { id: String(row!.id) };
+export async function addRule(
+  kind: RuleView["kind"],
+  players: string[]
+): Promise<{ id: string }> {
+  const row = oneRow(
+    await sql`
+    insert into team_rules (kind, players) values (${kind}, ${players}::uuid[]) returning id`
+  );
+  return { id: String(row.id) };
 }
 
 export async function removeRule(id: string): Promise<boolean> {
@@ -183,7 +250,12 @@ export async function removeRule(id: string): Promise<boolean> {
 
 /* ----------------------------------------------------------------------- venues -- */
 
-export type Venue = { id: string; name: string; mapUrl: string | null; hidden: boolean };
+export interface Venue {
+  hidden: boolean;
+  id: string;
+  mapUrl: string | null;
+  name: string;
+}
 
 export async function listVenues(includeHidden: boolean): Promise<Venue[]> {
   const rows = await sql`
@@ -201,16 +273,26 @@ export async function listVenues(includeHidden: boolean): Promise<Venue[]> {
 }
 
 /** A venue by name — the existing one (un-hidden) if the name is taken. */
-export async function ensureVenue(name: string, mapUrl: string | null): Promise<string> {
-  const [row] = await sql`
+export async function ensureVenue(
+  name: string,
+  mapUrl: string | null
+): Promise<string> {
+  const row = oneRow(
+    await sql`
     insert into venues (name, map_url) values (${name}, ${mapUrl})
     on conflict (lower(name)) do update
       set hidden = false, map_url = coalesce(excluded.map_url, venues.map_url)
-    returning id`;
-  return String(row!.id);
+    returning id`
+  );
+  return String(row.id);
 }
 
-export async function saveVenue(v: { id: string; name: string; mapUrl: string | null; hidden: boolean }) {
+export async function saveVenue(v: {
+  id: string;
+  name: string;
+  mapUrl: string | null;
+  hidden: boolean;
+}) {
   await sql`
     update venues set name = ${v.name}, map_url = ${v.mapUrl}, hidden = ${v.hidden}
     where id = ${v.id}`;
@@ -218,73 +300,81 @@ export async function saveVenue(v: { id: string; name: string; mapUrl: string | 
 
 /* -------------------------------------------------------------------- matchdays -- */
 
-export type ProposalView = {
+export interface ProposalView {
+  /** |total A − total B|. Safe to show: one number says little about any one person. */
+  gap: number;
   id: string;
   /** 1 = Jev's first choice; also the tie-break. */
   position: number;
   teamA: string[];
   teamB: string[];
-  /** |total A − total B|. Safe to show: one number says little about any one person. */
-  gap: number;
   /** Admin only. */
   totals?: { a: number; b: number };
   verdict: Verdict | null;
-};
+}
 
-export type RunView = {
+export interface RunView {
+  durationMs: number;
+  error: string | null;
   model: string;
   source: "jev" | "fallback";
-  error: string | null;
-  durationMs: number;
   trace: HarnessStep[];
-};
+}
 
-export type Change = { field: "date" | "time" | "venue" | "note"; from: string; to: string };
+export interface Change {
+  field: "date" | "time" | "venue" | "note";
+  from: string;
+  to: string;
+}
 
-export type SignupView = { playerId: string; addedBy: string | null; createdAt: string };
+export interface SignupView {
+  addedBy: string | null;
+  createdAt: string;
+  playerId: string;
+}
 
-export type MatchdayView = {
-  id: string;
-  kind: "announced" | "quick";
-  playedOn: string;
-  startsAt: string | null;
-  venue: { id: string; name: string; mapUrl: string | null } | null;
-  note: string | null;
-  createdBy: string | null;
-  changes: Change[] | null;
-  changedAt: string | null;
+export interface MatchdayView {
   cancelledAt: string | null;
   cancelReason: string | null;
+  changedAt: string | null;
+  changes: Change[] | null;
+  createdBy: string | null;
+  id: string;
+  kind: "announced" | "quick";
   lockedAt: string | null;
   lockedProposalId: string | null;
-  winner: "a" | "b" | "draw" | null;
-  scoreA: number | null;
-  scoreB: number | null;
+  note: string | null;
+  playedOn: string;
   /** Everyone the page mentions: the list, reserves, and whoever added them. */
   players: RosterPlayer[];
+  proposals: ProposalView[];
+  run: RunView | null;
+  scoreA: number | null;
+  scoreB: number | null;
   /** The whole list in playing order; the first twelve play. */
   signups: SignupView[];
   /** The twelve (or fewer) currently in. */
   squad: string[];
-  run: RunView | null;
-  proposals: ProposalView[];
+  startsAt: string | null;
+  venue: { id: string; name: string; mapUrl: string | null } | null;
   votes: { playerId: string; proposalId: string }[];
-};
+  winner: "a" | "b" | "draw" | null;
+}
 
-export type MatchdaySummary = {
+export interface MatchdaySummary {
+  cancelled: boolean;
   id: string;
   kind: "announced" | "quick";
-  playedOn: string;
-  startsAt: string | null;
-  venueName: string | null;
   locked: boolean;
-  cancelled: boolean;
-  winner: "a" | "b" | "draw" | null;
+  playedOn: string;
   scoreA: number | null;
   scoreB: number | null;
-  voteCount: number;
   signupCount: number;
-};
+  startsAt: string | null;
+  venueName: string | null;
+  voteCount: number;
+  winner: "a" | "b" | "draw" | null;
+}
 
 /**
  * The game people should be looking at: one not cancelled and still open (announced,
@@ -336,7 +426,9 @@ export async function createQuick(q: {
     where not exists (select 1 from matchdays where locked_at is null and cancelled_at is null)
     on conflict (played_on) where cancelled_at is null do nothing
     returning id`;
-  if (!row) return null;
+  if (!row) {
+    return null;
+  }
   const id = String(row.id);
   // Stagger the times so the list keeps the order people were ticked in.
   await sql`
@@ -357,7 +449,9 @@ export async function matchInfo(id: string) {
            (select count(*) from matchday_players mp where mp.matchday_id = m.id) as squad,
            exists (select 1 from proposals p where p.matchday_id = m.id) as has_teams
     from matchdays m where id = ${id}`;
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   return {
     kind: m.kind as "announced" | "quick",
     startsAt: (m.starts_at as string | null) ?? null,
@@ -376,7 +470,9 @@ export async function matchPlace(id: string) {
   const [m] = await sql`
     select extract(epoch from m.starts_at) as starts, m.cancelled_at is not null as cancelled, v.map_url
     from matchdays m left join venues v on v.id = m.venue_id where m.id = ${id}`;
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   return {
     starts: m.starts === null ? null : Number(m.starts),
     cancelled: Boolean(m.cancelled),
@@ -387,7 +483,7 @@ export async function matchPlace(id: string) {
 /** Edits date, time, place or note, and remembers what changed for the announcement. */
 export async function editMatch(
   id: string,
-  e: { date: string; time: string; venueId: string; note: string | null },
+  e: { date: string; time: string; venueId: string; note: string | null }
 ): Promise<Change[]> {
   const [cur] = await sql`
     select m.played_on::text as date,
@@ -396,14 +492,29 @@ export async function editMatch(
            (select name from venues where id = ${e.venueId}) as new_venue
     from matchdays m left join venues v on v.id = m.venue_id
     where m.id = ${id}`;
-  if (!cur) return [];
+  if (!cur) {
+    return [];
+  }
   const changes: Change[] = [];
-  if (cur.date !== e.date) changes.push({ field: "date", from: String(cur.date), to: e.date });
-  if (cur.time !== e.time) changes.push({ field: "time", from: String(cur.time), to: e.time });
-  if (cur.venue_id !== e.venueId)
-    changes.push({ field: "venue", from: String(cur.venue ?? ""), to: String(cur.new_venue ?? "") });
-  if (cur.note !== (e.note ?? "")) changes.push({ field: "note", from: String(cur.note), to: e.note ?? "" });
-  if (!changes.length) return [];
+  if (cur.date !== e.date) {
+    changes.push({ field: "date", from: String(cur.date), to: e.date });
+  }
+  if (cur.time !== e.time) {
+    changes.push({ field: "time", from: String(cur.time), to: e.time });
+  }
+  if (cur.venue_id !== e.venueId) {
+    changes.push({
+      field: "venue",
+      from: String(cur.venue ?? ""),
+      to: String(cur.new_venue ?? ""),
+    });
+  }
+  if (cur.note !== (e.note ?? "")) {
+    changes.push({ field: "note", from: String(cur.note), to: e.note ?? "" });
+  }
+  if (!changes.length) {
+    return [];
+  }
   await sql`
     update matchdays
     set played_on = ${e.date}::date,
@@ -423,7 +534,11 @@ export async function cancelMatch(id: string, reason: string | null) {
 }
 
 /** Puts someone on the list. Returns false if they were already on it. */
-export async function signUp(matchdayId: string, playerId: string, addedBy: string | null) {
+export async function signUp(
+  matchdayId: string,
+  playerId: string,
+  addedBy: string | null
+) {
   const rows = await sql`
     insert into signups (matchday_id, player_id, added_by)
     values (${matchdayId}, ${playerId}, ${addedBy === playerId ? null : addedBy})
@@ -461,13 +576,15 @@ async function setSquad(matchdayId: string, ids: string[]) {
  *   locked         the teams are public: whoever came in takes the leaver's place
  */
 export async function reconcile(
-  matchdayId: string,
+  matchdayId: string
 ): Promise<"none" | "balance" | "cleared" | "patched"> {
   const [m] = await sql`
     select kind, starts_at::text, locked_at is not null as locked, locked_proposal_id,
            cancelled_at is not null as cancelled
     from matchdays where id = ${matchdayId}`;
-  if (!m || m.cancelled) return "none";
+  if (!m || m.cancelled) {
+    return "none";
+  }
 
   const rows = await sql`
     select s.player_id, s.created_at::text, p.is_guest
@@ -479,7 +596,7 @@ export async function reconcile(
       isGuest: Boolean(r.is_guest),
       createdAt: String(r.created_at),
     })),
-    m.kind === "announced" ? ((m.starts_at as string | null) ?? null) : null,
+    m.kind === "announced" ? ((m.starts_at as string | null) ?? null) : null
   );
   const squad = splitSquad(ordered).squad.map((s) => s.playerId);
 
@@ -487,12 +604,16 @@ export async function reconcile(
     const [p] = await sql`
       select team_a::text[] as team_a, team_b::text[] as team_b
       from proposals where id = ${m.locked_proposal_id}`;
-    if (!p) return "none";
+    if (!p) {
+      return "none";
+    }
     const patched = patchLockedTeams(
       { teamA: p.team_a as string[], teamB: p.team_b as string[] },
-      squad,
+      squad
     );
-    if (!patched.changed) return "none";
+    if (!patched.changed) {
+      return "none";
+    }
     await sql`
       update proposals set team_a = ${patched.teamA}::uuid[], team_b = ${patched.teamB}::uuid[]
       where id = ${m.locked_proposal_id}`;
@@ -503,14 +624,23 @@ export async function reconcile(
   const current = (
     await sql`select player_id from matchday_players where matchday_id = ${matchdayId}`
   ).map((r) => String(r.player_id));
-  const same = current.length === squad.length && squad.every((id) => current.includes(id));
-  if (same) return "none";
+  const same =
+    current.length === squad.length &&
+    squad.every((id) => current.includes(id));
+  if (same) {
+    return "none";
+  }
 
   await setSquad(matchdayId, squad);
-  const [t] = await sql`select exists (select 1 from proposals where matchday_id = ${matchdayId}) as has`;
-  if (!t?.has) return "none";
+  const [t] =
+    await sql`select exists (select 1 from proposals where matchday_id = ${matchdayId}) as has`;
+  if (!t?.has) {
+    return "none";
+  }
   await sql`delete from votes where matchday_id = ${matchdayId}`;
-  if (squad.length === SQUAD_SIZE) return "balance";
+  if (squad.length === SQUAD_SIZE) {
+    return "balance";
+  }
   await sql`delete from proposals where matchday_id = ${matchdayId}`;
   await sql`update matchdays set auto_teams_at = null where id = ${matchdayId}`;
   return "cleared";
@@ -521,12 +651,21 @@ export async function reconcile(
  * nobody made them, and the vote closed at kick-off. There is no scheduler — this runs
  * whenever someone opens the app, which is exactly when the answer matters.
  */
-export async function dueNow(matchdayId: string): Promise<"teams" | "lock" | null> {
+export async function dueNow(
+  matchdayId: string
+): Promise<"teams" | "lock" | null> {
   const info = await matchInfo(matchdayId);
-  if (!info || info.kind !== "announced" || info.cancelled || info.locked || !info.startsAt) {
+  if (
+    info?.kind !== "announced" ||
+    info.cancelled ||
+    info.locked ||
+    !info.startsAt
+  ) {
     return null;
   }
-  if (info.hasTeams && hasStarted(info.startsAt)) return "lock";
+  if (info.hasTeams && hasStarted(info.startsAt)) {
+    return "lock";
+  }
   if (!info.hasTeams && info.squad === SQUAD_SIZE && teamsDue(info.startsAt)) {
     // Claim it, so two visitors at the same moment don't both make teams.
     const claimed = await sql`
@@ -540,7 +679,7 @@ export async function dueNow(matchdayId: string): Promise<"teams" | "lock" | nul
 
 /** The squad with ratings, English short names and the rules — for the harness. Server-only. */
 export async function squadForBalance(
-  matchdayId: string,
+  matchdayId: string
 ): Promise<{ squad: Player[]; namesEn: Map<string, string>; rules: Rules }> {
   const [rows, ids, rules] = await Promise.all([
     playerRows(),
@@ -554,7 +693,7 @@ export async function squadForBalance(
     .map((r) => ({ id: r.id, rating: r.rating, isGuest: r.isGuest }));
   return {
     squad,
-    namesEn: new Map(squad.map((p) => [p.id, names.get(p.id)!.en])),
+    namesEn: new Map(squad.map((p) => [p.id, nameOf(names, p.id).en])),
     rules: toRules(rules),
   };
 }
@@ -566,24 +705,88 @@ export async function clearVotes(matchdayId: string): Promise<void> {
 
 export async function saveRun(
   matchdayId: string,
-  run: Omit<RunView, "trace"> & { trace: HarnessStep[]; trigger: "manual" | "auto" },
-  proposals: { teamA: string[]; teamB: string[]; totalA: number; totalB: number; verdict: Verdict | null }[],
+  run: Omit<RunView, "trace"> & {
+    trace: HarnessStep[];
+    trigger: "manual" | "auto";
+  },
+  proposals: {
+    teamA: string[];
+    teamB: string[];
+    totalA: number;
+    totalB: number;
+    verdict: Verdict | null;
+  }[]
 ): Promise<void> {
-  const [row] = await sql`
+  const row = oneRow(
+    await sql`
     insert into balance_runs (matchday_id, model, source, trace, error, duration_ms, trigger)
     values (${matchdayId}, ${run.model}, ${run.source}, ${JSON.stringify(run.trace)}::jsonb,
             ${run.error}, ${run.durationMs}, ${run.trigger})
-    returning id`;
-  const runId = String(row!.id);
-  for (const [i, p] of proposals.entries()) {
-    await sql`
-      insert into proposals (run_id, matchday_id, position, team_a, team_b, total_a, total_b, verdict)
-      values (${runId}, ${matchdayId}, ${i + 1}, ${p.teamA}::uuid[], ${p.teamB}::uuid[],
-              ${p.totalA}, ${p.totalB}, ${p.verdict ? JSON.stringify(p.verdict) : null}::jsonb)`;
-  }
+    returning id`
+  );
+  const runId = String(row.id);
+  await Promise.all(
+    proposals.map(
+      (p, i) => sql`
+        insert into proposals (run_id, matchday_id, position, team_a, team_b, total_a, total_b, verdict)
+        values (${runId}, ${matchdayId}, ${i + 1}, ${p.teamA}::uuid[], ${p.teamB}::uuid[],
+                ${p.totalA}, ${p.totalB}, ${p.verdict ? JSON.stringify(p.verdict) : null}::jsonb)`
+    )
+  );
 }
 
-export async function getMatchday(id: string, admin: boolean): Promise<MatchdayView | null> {
+function toRunView(row: Row, admin: boolean): RunView {
+  return {
+    model: String(row.model),
+    source: row.source as RunView["source"],
+    error: (row.error as string | null) ?? null,
+    durationMs: Number(row.duration_ms),
+    // Jev's trace is the admin's alone.
+    trace: admin ? ((row.trace ?? []) as HarnessStep[]) : [],
+  };
+}
+
+async function proposalsOf(
+  runId: string,
+  admin: boolean
+): Promise<ProposalView[]> {
+  const rows = await sql`
+    select id, position, team_a::text[] as team_a, team_b::text[] as team_b,
+           total_a, total_b, verdict
+    from proposals where run_id = ${runId} order by position`;
+  return rows.map((p) => {
+    const a = Number(p.total_a);
+    const b = Number(p.total_b);
+    const view: ProposalView = {
+      id: String(p.id),
+      position: Number(p.position),
+      teamA: p.team_a as string[],
+      teamB: p.team_b as string[],
+      gap: Math.round(Math.abs(a - b) * 10) / 10,
+      verdict: (p.verdict as Verdict | null) ?? null,
+    };
+    if (admin) {
+      view.totals = { a, b };
+    }
+    return view;
+  });
+}
+
+function venueOf(day: Row): MatchdayView["venue"] {
+  if (!day.venue_id) {
+    return null;
+  }
+  return {
+    id: String(day.venue_id),
+    name: String(day.venue_name),
+    mapUrl: (day.venue_map as string | null) ?? null,
+  };
+}
+
+export async function getMatchday(
+  id: string,
+  admin: boolean
+): Promise<MatchdayView | null> {
   const [day] = await sql`
     select m.id, m.kind, m.played_on::text, m.starts_at::text, m.note, m.created_by,
            m.changes, m.changed_at::text, m.cancelled_at::text, m.cancel_reason,
@@ -591,7 +794,9 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
            v.id as venue_id, v.name as venue_name, v.map_url as venue_map
     from matchdays m left join venues v on v.id = m.venue_id
     where m.id = ${id}`;
-  if (!day) return null;
+  if (!day) {
+    return null;
+  }
 
   const [rows, squadIds, signupRows, runs, votes] = await Promise.all([
     playerRows(),
@@ -613,63 +818,33 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
       createdAt: String(r.created_at),
       isGuest: guest.get(String(r.player_id)) ?? false,
     })),
-    day.kind === "announced" ? startsAt : null,
-  ).map(({ playerId, addedBy, createdAt }) => ({ playerId, addedBy, createdAt }));
+    day.kind === "announced" ? startsAt : null
+  ).map(({ playerId, addedBy, createdAt }) => ({
+    playerId,
+    addedBy,
+    createdAt,
+  }));
 
   const squad = squadIds.map((r) => String(r.player_id));
   const mentioned = new Set([
     ...(day.created_by ? [String(day.created_by)] : []),
     ...squad,
-    ...signups.flatMap((s) => (s.addedBy ? [s.playerId, s.addedBy] : [s.playerId])),
+    ...signups.flatMap((s) =>
+      s.addedBy ? [s.playerId, s.addedBy] : [s.playerId]
+    ),
   ]);
   const players = toRoster(rows, admin).filter((p) => mentioned.has(p.id));
 
-  const r = runs[0];
-  const trace = (r?.trace ?? []) as HarnessStep[];
-  const run: RunView | null = r
-    ? {
-        model: String(r.model),
-        source: r.source as RunView["source"],
-        error: (r.error as string | null) ?? null,
-        durationMs: Number(r.duration_ms),
-        trace: admin ? trace : [],
-      }
-    : null;
-
-  const proposals: ProposalView[] = r
-    ? (
-        await sql`
-          select id, position, team_a::text[] as team_a, team_b::text[] as team_b,
-                 total_a, total_b, verdict
-          from proposals where run_id = ${r.id} order by position`
-      ).map((p) => {
-        const a = Number(p.total_a);
-        const b = Number(p.total_b);
-        const view: ProposalView = {
-          id: String(p.id),
-          position: Number(p.position),
-          teamA: p.team_a as string[],
-          teamB: p.team_b as string[],
-          gap: Math.round(Math.abs(a - b) * 10) / 10,
-          verdict: (p.verdict as Verdict | null) ?? null,
-        };
-        if (admin) view.totals = { a, b };
-        return view;
-      })
-    : [];
+  const [latest] = runs;
+  const run = latest ? toRunView(latest, admin) : null;
+  const proposals = latest ? await proposalsOf(String(latest.id), admin) : [];
 
   return {
     id: String(day.id),
     kind: day.kind as MatchdayView["kind"],
     playedOn: String(day.played_on),
     startsAt,
-    venue: day.venue_id
-      ? {
-          id: String(day.venue_id),
-          name: String(day.venue_name),
-          mapUrl: (day.venue_map as string | null) ?? null,
-        }
-      : null,
+    venue: venueOf(day),
     note: (day.note as string | null) ?? null,
     createdBy: (day.created_by as string | null) ?? null,
     changes: (day.changes as Change[] | null) ?? null,
@@ -686,12 +861,19 @@ export async function getMatchday(id: string, admin: boolean): Promise<MatchdayV
     squad,
     run,
     proposals,
-    votes: votes.map((v) => ({ playerId: String(v.player_id), proposalId: String(v.proposal_id) })),
+    votes: votes.map((v) => ({
+      playerId: String(v.player_id),
+      proposalId: String(v.proposal_id),
+    })),
   };
 }
 
 /** Records a vote. Returns false when refused (locked, started, not in the squad, stale). */
-export async function castVote(matchdayId: string, playerId: string, proposalId: string) {
+export async function castVote(
+  matchdayId: string,
+  playerId: string,
+  proposalId: string
+) {
   const rows = await sql`
     insert into votes (matchday_id, player_id, proposal_id)
     select ${matchdayId}, ${playerId}, p.id
@@ -744,7 +926,7 @@ export async function setResult(
   id: string,
   winner: "a" | "b" | "draw",
   scoreA: number | null,
-  scoreB: number | null,
+  scoreB: number | null
 ): Promise<boolean> {
   const rows = await sql`
     update matchdays set winner = ${winner}, score_a = ${scoreA}, score_b = ${scoreB}
@@ -782,16 +964,22 @@ export async function listMatchdays(): Promise<MatchdaySummary[]> {
 
 /** Is this date/time (Sofia) in the future, and how many days from today is it? */
 export async function checkWhen(date: string, time: string) {
-  const [row] = await sql`
+  const row = oneRow(
+    await sql`
     select ((${date}::date + ${time}::time) at time zone 'Europe/Sofia') > now() as future,
-           ${date}::date - (now() at time zone 'Europe/Sofia')::date as days`;
-  return { future: Boolean(row!.future), days: Number(row!.days) };
+           ${date}::date - (now() at time zone 'Europe/Sofia')::date as days`
+  );
+  return { future: Boolean(row.future), days: Number(row.days) };
 }
 
 // ---------------------------------------------------------------------------------------
 // The balls: someone takes them home after each game.
 
-export type BallHandover = { playerId: string; since: string; setBy: string | null };
+export interface BallHandover {
+  playerId: string;
+  setBy: string | null;
+  since: string;
+}
 
 /** Newest first: the first entry is where the balls are now. */
 export async function ballTrail(limit = 12): Promise<BallHandover[]> {
@@ -805,7 +993,10 @@ export async function ballTrail(limit = 12): Promise<BallHandover[]> {
 }
 
 /** Hand the balls to someone. False when they already have them. */
-export async function passBalls(playerId: string, setBy: string | null): Promise<boolean> {
+export async function passBalls(
+  playerId: string,
+  setBy: string | null
+): Promise<boolean> {
   const rows = await sql`
     insert into ball_holders (player_id, set_by)
     select ${playerId}, ${setBy}

@@ -9,7 +9,13 @@
 const emoji = String.raw`(?:[\p{Extended_Pictographic}\p{Emoji_Component}‍]+ )?`;
 
 export const parserOpts = {
-  headerPattern: new RegExp(String.raw`^${emoji}(\w+)(?:\(([^)]*)\))?!?: (.+)$`, "u"),
-  breakingHeaderPattern: new RegExp(String.raw`^${emoji}(\w+)(?:\(([^)]*)\))?!: (.+)$`, "u"),
+  headerPattern: new RegExp(
+    String.raw`^${emoji}(\w+)(?:\(([^)]*)\))?!?: (.+)$`,
+    "u"
+  ),
+  breakingHeaderPattern: new RegExp(
+    String.raw`^${emoji}(\w+)(?:\(([^)]*)\))?!: (.+)$`,
+    "u"
+  ),
   headerCorrespondence: ["type", "scope", "subject"],
 };

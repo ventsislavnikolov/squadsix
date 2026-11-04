@@ -6,14 +6,39 @@ import { PANE } from "@/components/page";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+// Placeholder rows never reorder; fixed ids keep React's keys tied to a row, not an index.
+const LIST_ROWS = [
+  { id: "row-1", width: "w-56" },
+  { id: "row-2", width: "w-44" },
+  { id: "row-3", width: "w-64" },
+  { id: "row-4", width: "w-56" },
+  { id: "row-5", width: "w-44" },
+  { id: "row-6", width: "w-64" },
+  { id: "row-7", width: "w-56" },
+  { id: "row-8", width: "w-44" },
+] as const;
+const FORM_FIELDS = ["field-1", "field-2", "field-3", "field-4"] as const;
+const OPTIONS = ["option-1", "option-2", "option-3"] as const;
+const TEAMS = ["team-a", "team-b"] as const;
+const PLAYERS = [
+  "player-1",
+  "player-2",
+  "player-3",
+  "player-4",
+  "player-5",
+  "player-6",
+] as const;
+
 export function Bone({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-fg/[0.07]", className)} />;
+  return (
+    <div className={cn("animate-pulse rounded-md bg-fg/[0.07]", className)} />
+  );
 }
 
 function Frame({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   return (
-    <div className={cn(PANE, "space-y-10 py-10")} role="status" aria-busy>
+    <div aria-busy className={cn(PANE, "space-y-10 py-10")} role="status">
       <span className="sr-only">{t.common.loading}</span>
       <header className="border-b border-fg/[0.06] pb-8">
         <Bone className="h-3 w-44" />
@@ -30,9 +55,12 @@ export function ListSkeleton() {
   return (
     <Frame>
       <ul className="border-t border-fg/[0.07]">
-        {Array.from({ length: 8 }, (_, i) => (
-          <li key={i} className="flex items-center justify-between gap-4 border-b border-fg/[0.07] py-4">
-            <Bone className={cn("h-4", i % 3 === 0 ? "w-56" : i % 3 === 1 ? "w-44" : "w-64")} />
+        {LIST_ROWS.map((row) => (
+          <li
+            className="flex items-center justify-between gap-4 border-b border-fg/[0.07] py-4"
+            key={row.id}
+          >
+            <Bone className={cn("h-4", row.width)} />
             <Bone className="h-3 w-20" />
           </li>
         ))}
@@ -46,8 +74,8 @@ export function FormSkeleton() {
   return (
     <Frame>
       <div className="max-w-xl space-y-6">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="space-y-2.5">
+        {FORM_FIELDS.map((field) => (
+          <div className="space-y-2.5" key={field}>
             <Bone className="h-3 w-24" />
             <Bone className="h-10 w-full" />
           </div>
@@ -67,18 +95,24 @@ export function MatchSkeleton() {
         <Bone className="h-4 w-44" />
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className={cn("rounded-xl border border-fg/[0.08] p-6", i > 0 && "hidden lg:block")}>
+        {OPTIONS.map((option, i) => (
+          <div
+            className={cn(
+              "rounded-xl border border-fg/[0.08] p-6",
+              i > 0 && "hidden lg:block"
+            )}
+            key={option}
+          >
             <div className="flex justify-between">
               <Bone className="h-3 w-20" />
               <Bone className="h-3 w-16" />
             </div>
             <div className="mt-8 grid grid-cols-2 gap-8">
-              {[0, 1].map((team) => (
-                <div key={team} className="space-y-3.5">
+              {TEAMS.map((team) => (
+                <div className="space-y-3.5" key={team}>
                   <Bone className="h-4 w-16" />
-                  {Array.from({ length: 6 }, (_, row) => (
-                    <Bone key={row} className="h-3.5 w-full" />
+                  {PLAYERS.map((player) => (
+                    <Bone className="h-3.5 w-full" key={player} />
                   ))}
                 </div>
               ))}

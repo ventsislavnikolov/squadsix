@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
@@ -25,8 +25,25 @@ export function WhoAmI({ compact = false }: { compact?: boolean }) {
   const [candidate, setCandidate] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   useEffect(() => setHydrated(true), []);
+  const startChoosing = useCallback(() => setChoosing(true), []);
+  const stopChoosing = useCallback(() => setChoosing(false), []);
+  const reject = useCallback(() => setCandidate(null), []);
+  const confirm = useCallback(() => {
+    if (candidate) {
+      setMe(candidate);
+    }
+    setCandidate(null);
+    setChoosing(false);
+    setFilter("");
+  }, [candidate, setMe]);
+  const changeFilter = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value),
+    []
+  );
 
-  if (!hydrated || isPending) return null;
+  if (!hydrated || isPending) {
+    return null;
+  }
 
   const self = players.find((p) => p.id === me);
   if (self && !choosing) {
@@ -34,9 +51,9 @@ export function WhoAmI({ compact = false }: { compact?: boolean }) {
       <p className="text-[13px] text-fg/55">
         {t.who.as(name(self.name))}{" "}
         <button
-          type="button"
           className="underline underline-offset-4 hover:text-fg"
-          onClick={() => setChoosing(true)}
+          onClick={startChoosing}
+          type="button"
         >
           {t.who.change}
         </button>
@@ -44,24 +61,20 @@ export function WhoAmI({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  const picked = candidate ? players.find((p) => p.id === candidate) : undefined;
+  const picked = candidate
+    ? players.find((p) => p.id === candidate)
+    : undefined;
   if (picked) {
     return (
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.04] p-4">
-        <p className="text-[14px] font-medium">{t.who.confirm(name(picked.name))}</p>
+        <p className="text-[14px] font-medium">
+          {t.who.confirm(name(picked.name))}
+        </p>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              setMe(picked.id);
-              setCandidate(null);
-              setChoosing(false);
-              setFilter("");
-            }}
-          >
+          <Button onClick={confirm} size="sm">
             {t.who.yes}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setCandidate(null)}>
+          <Button onClick={reject} size="sm" variant="ghost">
             {t.who.no}
           </Button>
         </div>
@@ -71,36 +84,64 @@ export function WhoAmI({ compact = false }: { compact?: boolean }) {
 
   const q = filter.trim().toLocaleLowerCase();
   const shown = players.filter(
-    (p) => !q || p.name.bg.toLocaleLowerCase().includes(q) || p.name.en.toLowerCase().includes(q),
+    (p) =>
+      !q ||
+      p.name.bg.toLocaleLowerCase().includes(q) ||
+      p.name.en.toLowerCase().includes(q)
   );
 
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-4">
       <p className="text-[14px] font-medium">{t.who.title}</p>
-      {!compact && <p className="mt-1 text-[13px] text-fg/55">{t.who.note}</p>}
+      {compact ? null : (
+        <p className="mt-1 text-[13px] text-fg/55">{t.who.note}</p>
+      )}
       <Input
         className="mt-3 max-w-xs"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
+        onChange={changeFilter}
         placeholder={t.who.search}
+        value={filter}
       />
       <div className="mt-3 flex flex-wrap gap-2">
         {shown.map((p) => (
-          <Button
+          <PlayerChoice
+            current={p.id === me}
+            id={p.id}
             key={p.id}
-            size="sm"
-            variant={p.id === me ? "default" : "outline"}
-            onClick={() => setCandidate(p.id)}
-          >
-            {name(p.name)}
-          </Button>
+            label={name(p.name)}
+            onPick={setCandidate}
+          />
         ))}
       </div>
-      {self && (
-        <Button size="sm" variant="ghost" className="mt-3" onClick={() => setChoosing(false)}>
+      {self ? (
+        <Button
+          className="mt-3"
+          onClick={stopChoosing}
+          size="sm"
+          variant="ghost"
+        >
           {t.common.cancel}
         </Button>
-      )}
+      ) : null}
     </div>
+  );
+}
+
+function PlayerChoice({
+  id,
+  label,
+  current,
+  onPick,
+}: {
+  id: string;
+  label: string;
+  current: boolean;
+  onPick: (id: string) => void;
+}) {
+  const pick = useCallback(() => onPick(id), [id, onPick]);
+  return (
+    <Button onClick={pick} size="sm" variant={current ? "default" : "outline"}>
+      {label}
+    </Button>
   );
 }

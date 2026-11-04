@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { EventForm, venueInput } from "@/components/event-form";
-import { PageHead, PANE } from "@/components/page";
+import { PANE, PageHead } from "@/components/page";
 import { FormSkeleton } from "@/components/skeletons";
 import { WhoAmI } from "@/components/who-am-i";
 import { useI18n } from "@/lib/i18n";
-import { openMatchQuery, pickListQuery, venuesQuery, warm } from "@/lib/queries";
+import {
+  openMatchQuery,
+  pickListQuery,
+  venuesQuery,
+  warm,
+} from "@/lib/queries";
 import { useMe } from "@/lib/use-voter";
 import { cn } from "@/lib/utils";
 import { announce } from "@/server/functions";
@@ -13,9 +18,12 @@ import { announce } from "@/server/functions";
 export const Route = createFileRoute("/new")({
   beforeLoad: async ({ context }) => {
     const open = await context.queryClient.fetchQuery(openMatchQuery);
-    if (open.id) throw redirect({ to: "/match/$id", params: { id: open.id } });
+    if (open.id) {
+      throw redirect({ to: "/match/$id", params: { id: open.id } });
+    }
   },
-  loader: ({ context }) => warm(context.queryClient, venuesQuery, pickListQuery),
+  loader: ({ context }) =>
+    warm(context.queryClient, venuesQuery, pickListQuery),
   pendingComponent: FormSkeleton,
   component: NewGame,
 });
@@ -45,17 +53,21 @@ function NewGame() {
 
   return (
     <div className={cn(PANE, "space-y-8 py-10")}>
-      <PageHead eyebrow={t.event.newEyebrow} title={t.event.newTitle} lead={t.event.newLead} />
+      <PageHead
+        eyebrow={t.event.newEyebrow}
+        lead={t.event.newLead}
+        title={t.event.newTitle}
+      />
       <WhoAmI />
-      {me && (
+      {me ? (
         <EventForm
-          initial={{}}
-          submitLabel={t.event.submit}
-          pending={submit.isPending}
           error={submit.isError ? error(submit.error) : null}
-          onSubmit={(v) => submit.mutate(v)}
+          initial={{}}
+          onSubmit={submit.mutate}
+          pending={submit.isPending}
+          submitLabel={t.event.submit}
         />
-      )}
+      ) : null}
     </div>
   );
 }

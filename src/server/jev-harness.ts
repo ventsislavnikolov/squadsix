@@ -14,15 +14,22 @@
 // Every call is recorded as a step so the match page can show how the teams were chosen.
 // Steps carry data, not sentences: the page words them in the reader's language.
 
-import { boolean, choice, decide, score, type AnyEvaluateAdapter } from "@tanstack/ai";
+import {
+  type AnyEvaluateAdapter,
+  boolean,
+  choice,
+  decide,
+  score,
+} from "@tanstack/ai";
 import { createOpenRouterDecider } from "@tanstack/ai-openrouter";
 import {
   bestSplits,
   effectiveRating,
-  scoreSplit,
   type Player,
+  playerById,
   type Split,
   type SplitScore,
+  scoreSplit,
 } from "@/domain/balance";
 import { brokenRules, inPlay, NO_RULES, type Rules } from "@/domain/rules";
 import { SITE } from "@/lib/preview";
@@ -32,36 +39,47 @@ export const JEV_MODEL = "~typesafe/jev-latest";
 const CANDIDATES = 10;
 const PICK = 3;
 
-export const FAIRNESS_LEVELS = ["one-sided", "uneven", "close", "dead even"] as const;
+export const FAIRNESS_LEVELS = [
+  "one-sided",
+  "uneven",
+  "close",
+  "dead even",
+] as const;
 export type FairnessLevel = (typeof FAIRNESS_LEVELS)[number];
 
-export type Verdict = {
+export interface Verdict {
   /** Which candidate this was in the trace (c1..c10). */
   candidate: string;
   /** Jev's fairness score, 0..1 across FAIRNESS_LEVELS. */
   fairness: number;
-  fairnessLabel: FairnessLevel;
   fairnessConfidence: number;
-  /** P(a neutral player would call one side stacked). */
-  stacked: number;
+  fairnessLabel: FairnessLevel;
   /** P(Jev picks this as the best game of all candidates). */
   preferred: number;
   /** The combined number we rank on. */
   rank: number;
-};
+  /** P(a neutral player would call one side stacked). */
+  stacked: number;
+}
 
 /** Plain JSON — trace steps go to Postgres and over the wire as-is. */
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | Json[]
+  | { [key: string]: Json };
 
-type JevCall = {
-  /** What Jev was shown. Contains ratings, so only the admin ever receives it. */
-  state: Json | null;
-  questions: { [key: string]: Json };
+interface JevCall {
   answers: { [key: string]: Json };
   model: string;
-  tokens: number | null;
   ms: number;
-};
+  questions: { [key: string]: Json };
+  /** What Jev was shown. Contains ratings, so only the admin ever receives it. */
+  state: Json | null;
+  tokens: number | null;
+}
 
 export type HarnessStep =
   | {
@@ -78,13 +96,13 @@ export type HarnessStep =
   | { kind: "decide"; mode: "jev" | "fallback"; picked: string[]; ms: number }
   | { kind: "error"; message: string };
 
-export type HarnessResult = {
-  source: "jev" | "fallback";
-  model: string;
+export interface HarnessResult {
   error: string | null;
-  trace: HarnessStep[];
+  model: string;
   picks: { split: Split; score: SplitScore; verdict: Verdict | null }[];
-};
+  source: "jev" | "fallback";
+  trace: HarnessStep[];
+}
 
 /**
  * @param names what to call each player in Jev's state — English, its strongest language.
@@ -93,7 +111,7 @@ export type HarnessResult = {
 export async function balanceWithJev(
   squad: Player[],
   names: Map<string, string>,
-  rules: Rules = NO_RULES,
+  rules: Rules = NO_RULES
 ): Promise<HarnessResult> {
   const byId = new Map(squad.map((p) => [p.id, p]));
   const trace: HarnessStep[] = [];
@@ -104,7 +122,10 @@ export async function balanceWithJev(
     split,
     score: scoreSplit(split, byId),
   }));
-  const today = inPlay(rules, squad.map((p) => p.id));
+  const today = inPlay(
+    rules,
+    squad.map((p) => p.id)
+  );
   trace.push({
     kind: "measure",
     combinations: 462,
@@ -115,8 +136,11 @@ export async function balanceWithJev(
   });
 
   const adapter = jevAdapter();
-  if (!adapter) return fallback(candidates, trace, "missing-key");
-  const describe = (c: (typeof candidates)[number]) => describeGame(c.split, c.score, byId, names);
+  if (!adapter) {
+    return fallback(candidates, trace, "missing-key");
+  }
+  const describe = (c: (typeof candidates)[number]) =>
+    describeGame(c.split, c.score, byId, names);
 
   try {
     // 2. judge — one small request per candidate, run in parallel.
@@ -146,21 +170,30 @@ export async function balanceWithJev(
           questions: json(questions),
           answers: json({ fairness: r.fairness, stacked: r.stacked }),
           model: r.meta.model,
-          tokens: r.meta.usage?.totalTokens ?? null,
+          tokens: r.meta.usage.totalTokens,
           ms: ms(s),
         });
-        return { ...c, fairness: r.fairness, stacked: r.stacked, model: r.meta.model };
-      }),
+        return {
+          ...c,
+          fairness: r.fairness,
+          stacked: r.stacked,
+          model: r.meta.model,
+        };
+      })
     );
 
     // 3. compare — Jev sees every candidate and picks one.
-    const state = { games: Object.fromEntries(candidates.map((c) => [c.key, describe(c)])) };
+    const state = {
+      games: Object.fromEntries(candidates.map((c) => [c.key, describe(c)])),
+    };
     const questions = {
       best: choice({
         instructions:
           "Several possible line-ups for tonight's 6-a-side office game. Totals are precomputed and correct. " +
           "Which game will be the most fun because it is the closest contest?",
-        options: Object.fromEntries(candidates.map((c) => [c.key, null])) as Record<string, null>,
+        options: Object.fromEntries(
+          candidates.map((c) => [c.key, null])
+        ) as Record<string, null>,
       }),
     };
     t = performance.now();
@@ -171,7 +204,7 @@ export async function balanceWithJev(
       questions: json(questions),
       answers: json({ best: cmp.best }),
       model: cmp.meta.model,
-      tokens: cmp.meta.usage?.totalTokens ?? null,
+      tokens: cmp.meta.usage.totalTokens,
       ms: ms(t),
     });
 
@@ -182,7 +215,9 @@ export async function balanceWithJev(
         const preferred = cmp.best.probabilities[j.key] ?? 0;
         // Jev's score runs 0..(levels − 1) — 2.99 means "almost dead even" on four
         // levels. Bring it to 0..1 so it weighs the same as the probabilities beside it.
-        const fairness = clamp01(j.fairness.score / (FAIRNESS_LEVELS.length - 1));
+        const fairness = clamp01(
+          j.fairness.score / (FAIRNESS_LEVELS.length - 1)
+        );
         const verdict: Verdict = {
           candidate: j.key,
           fairness,
@@ -197,14 +232,23 @@ export async function balanceWithJev(
       .sort((a, b) => b.verdict.rank - a.verdict.rank)
       .slice(0, PICK);
 
-    trace.push({ kind: "decide", mode: "jev", picked: ranked.map((r) => r.key), ms: ms(t) });
+    trace.push({
+      kind: "decide",
+      mode: "jev",
+      picked: ranked.map((r) => r.key),
+      ms: ms(t),
+    });
 
     return {
       source: "jev",
       model: judged[0]?.model ?? JEV_MODEL,
       error: null,
       trace,
-      picks: ranked.map((r) => ({ split: r.split, score: r.score, verdict: r.verdict })),
+      picks: ranked.map((r) => ({
+        split: r.split,
+        score: r.score,
+        verdict: r.verdict,
+      })),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -216,23 +260,37 @@ export async function balanceWithJev(
 /** Jev is reached through OpenRouter, which hosts the model. No key, no Jev. */
 function jevAdapter(): AnyEvaluateAdapter | null {
   const key = process.env.OPENROUTER_API_KEY;
-  if (!key) return null;
-  return createOpenRouterDecider(JEV_MODEL, key, { xTitle: "Squad Six", httpReferer: SITE });
+  if (!key) {
+    return null;
+  }
+  return createOpenRouterDecider(JEV_MODEL, key, {
+    xTitle: "Squad Six",
+    httpReferer: SITE,
+  });
 }
 
 function fallback(
   candidates: { key: string; split: Split; score: SplitScore }[],
   trace: HarnessStep[],
-  error: string,
+  error: string
 ): HarnessResult {
   const picks = candidates.slice(0, PICK);
-  trace.push({ kind: "decide", mode: "fallback", picked: picks.map((c) => c.key), ms: 0 });
+  trace.push({
+    kind: "decide",
+    mode: "fallback",
+    picked: picks.map((c) => c.key),
+    ms: 0,
+  });
   return {
     source: "fallback",
     model: "arithmetic",
     error,
     trace,
-    picks: picks.map((c) => ({ split: c.split, score: c.score, verdict: null })),
+    picks: picks.map((c) => ({
+      split: c.split,
+      score: c.score,
+      verdict: null,
+    })),
   };
 }
 
@@ -241,13 +299,16 @@ function describeGame(
   split: Split,
   s: SplitScore,
   byId: Map<string, Player>,
-  names: Map<string, string>,
+  names: Map<string, string>
 ) {
   const side = (ids: string[]) =>
     ids
-      .map((id) => byId.get(id)!)
+      .map((id) => playerById(byId, id))
       .sort((a, b) => effectiveRating(b) - effectiveRating(a))
-      .map((p) => `${names.get(p.id) ?? "?"} (${p.rating === null ? "?" : p.rating.toFixed(1)})`);
+      .map(
+        (p) =>
+          `${names.get(p.id) ?? "?"} (${p.rating === null ? "?" : p.rating.toFixed(1)})`
+      );
   return {
     teamA: side(split.teamA),
     teamB: side(split.teamB),

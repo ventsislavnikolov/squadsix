@@ -1,32 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { guestsOpen, hasStarted, orderSignups, patchLockedTeams, splitSquad, teamsDue } from "./signup";
+import {
+  guestsOpen,
+  hasStarted,
+  orderSignups,
+  patchLockedTeams,
+  splitSquad,
+  teamsDue,
+} from "./signup";
 
 const kickoff = "2026-09-29T17:00:00.000Z"; // Tuesday 20:00 in Sofia
-const hoursBefore = (h: number) => new Date(Date.parse(kickoff) - h * 3_600_000).toISOString();
+const hoursBefore = (h: number) =>
+  new Date(Date.parse(kickoff) - h * 3_600_000).toISOString();
 
 describe("orderSignups", () => {
   it("puts regulars ahead of guests until 24 hours before kick-off", () => {
     const list = orderSignups(
       [
         { playerId: "guest", isGuest: true, createdAt: hoursBefore(72) },
-        { playerId: "late-regular", isGuest: false, createdAt: hoursBefore(48) },
+        {
+          playerId: "late-regular",
+          isGuest: false,
+          createdAt: hoursBefore(48),
+        },
         { playerId: "regular", isGuest: false, createdAt: hoursBefore(70) },
       ],
-      kickoff,
+      kickoff
     );
-    expect(list.map((s) => s.playerId)).toEqual(["regular", "late-regular", "guest"]);
+    expect(list.map((s) => s.playerId)).toEqual([
+      "regular",
+      "late-regular",
+      "guest",
+    ]);
   });
 
   it("stops pushing guests back inside the last 24 hours", () => {
     const list = orderSignups(
       [
-        { playerId: "very-late-regular", isGuest: false, createdAt: hoursBefore(3) },
+        {
+          playerId: "very-late-regular",
+          isGuest: false,
+          createdAt: hoursBefore(3),
+        },
         { playerId: "guest", isGuest: true, createdAt: hoursBefore(30) },
         { playerId: "late-guest", isGuest: true, createdAt: hoursBefore(5) },
       ],
-      kickoff,
+      kickoff
     );
-    expect(list.map((s) => s.playerId)).toEqual(["guest", "late-guest", "very-late-regular"]);
+    expect(list.map((s) => s.playerId)).toEqual([
+      "guest",
+      "late-guest",
+      "very-late-regular",
+    ]);
   });
 
   it("is first come, first served without a kick-off time", () => {
@@ -35,7 +59,7 @@ describe("orderSignups", () => {
         { playerId: "b", isGuest: false, createdAt: hoursBefore(1) },
         { playerId: "a", isGuest: true, createdAt: hoursBefore(2) },
       ],
-      null,
+      null
     );
     expect(list.map((s) => s.playerId)).toEqual(["a", "b"]);
   });
@@ -43,7 +67,9 @@ describe("orderSignups", () => {
 
 describe("splitSquad", () => {
   it("keeps twelve and queues the rest", () => {
-    const { squad, reserves } = splitSquad(Array.from({ length: 14 }, (_, i) => i));
+    const { squad, reserves } = splitSquad(
+      Array.from({ length: 14 }, (_, i) => i)
+    );
     expect(squad).toHaveLength(12);
     expect(reserves).toEqual([12, 13]);
   });
@@ -62,12 +88,38 @@ describe("patchLockedTeams", () => {
   it("leaves a hole when nobody can come in, and fills the short team later", () => {
     const short = patchLockedTeams(teams, ["a1", "a2", "a3", "b1", "b3"]);
     expect(short.teamB).toEqual(["b1", "b3"]);
-    const filled = patchLockedTeams(short, ["a1", "a2", "a3", "b1", "b3", "g1"]);
+    const filled = patchLockedTeams(short, [
+      "a1",
+      "a2",
+      "a3",
+      "b1",
+      "b3",
+      "g1",
+    ]);
     expect(filled.teamB).toEqual(["b1", "b3", "g1"]);
   });
 
+  it("fills Team A first when it is the short one, or both are even", () => {
+    const short = patchLockedTeams(teams, ["a1", "a3", "b1", "b2", "b3"]);
+    expect(short.teamA).toEqual(["a1", "a3"]);
+    const filled = patchLockedTeams(short, [
+      "a1",
+      "a3",
+      "b1",
+      "b2",
+      "b3",
+      "g1",
+      "g2",
+    ]);
+    // g1 evens the sides; on a tie the next arrival goes to Team A.
+    expect(filled.teamA).toEqual(["a1", "a3", "g1", "g2"]);
+    expect(filled.teamB).toEqual(["b1", "b2", "b3"]);
+  });
+
   it("reports no change when the squad is the same", () => {
-    expect(patchLockedTeams(teams, [...teams.teamA, ...teams.teamB]).changed).toBe(false);
+    expect(
+      patchLockedTeams(teams, [...teams.teamA, ...teams.teamB]).changed
+    ).toBe(false);
   });
 });
 

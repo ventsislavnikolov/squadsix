@@ -7,7 +7,11 @@
 // The session is a signed, httpOnly cookie holding only its own expiry. Server-only.
 
 import { createHmac, scryptSync, timingSafeEqual } from "node:crypto";
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import {
+  deleteCookie,
+  getCookie,
+  setCookie,
+} from "@tanstack/react-start/server";
 import { requireEnv } from "./db";
 
 const COOKIE = "s6_admin";
@@ -16,12 +20,20 @@ const THIRTY_DAYS = 60 * 60 * 24 * 30;
 export function checkCredentials(email: string, password: string): boolean {
   const expectedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const stored = process.env.ADMIN_PASSWORD_HASH;
-  if (!expectedEmail || !stored) return false;
+  if (!(expectedEmail && stored)) {
+    return false;
+  }
 
   const [scheme, saltHex, hashHex] = stored.split(":");
-  if (scheme !== "scrypt" || !saltHex || !hashHex) return false;
+  if (scheme !== "scrypt" || !saltHex || !hashHex) {
+    return false;
+  }
   const expected = Buffer.from(hashHex, "hex");
-  const actual = scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
+  const actual = scryptSync(
+    password,
+    Buffer.from(saltHex, "hex"),
+    expected.length
+  );
 
   // Compare both, always, so a wrong email takes as long as a wrong password.
   const emailOk = safeEqual(email.trim().toLowerCase(), expectedEmail);
@@ -46,19 +58,29 @@ export function endSession() {
 
 export function isAdmin(): boolean {
   const value = getCookie(COOKIE);
-  if (!value || !process.env.SESSION_SECRET) return false;
+  if (!(value && process.env.SESSION_SECRET)) {
+    return false;
+  }
   const [expires, signature] = value.split(".");
-  if (!expires || !signature) return false;
-  if (!safeEqual(signature, sign(expires))) return false;
+  if (!(expires && signature)) {
+    return false;
+  }
+  if (!safeEqual(signature, sign(expires))) {
+    return false;
+  }
   return Number(expires) > Date.now() / 1000;
 }
 
 export function requireAdmin() {
-  if (!isAdmin()) throw new Error("admin-only");
+  if (!isAdmin()) {
+    throw new Error("admin-only");
+  }
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", requireEnv("SESSION_SECRET")).update(value).digest("base64url");
+  return createHmac("sha256", requireEnv("SESSION_SECRET"))
+    .update(value)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {

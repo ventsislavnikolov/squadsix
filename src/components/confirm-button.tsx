@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,16 +35,25 @@ export function ConfirmButton({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const confirm = useCallback(() => {
+    setOpen(false);
+    onConfirm();
+  }, [onConfirm]);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant={variant} disabled={disabled}>
+        <Button disabled={disabled} variant={variant}>
           {children}
         </Button>
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="max-w-sm gap-6 border-fg/[0.1] bg-card">
+      <DialogContent
+        className="max-w-sm gap-6 border-fg/[0.1] bg-card"
+        showCloseButton={false}
+      >
         <DialogHeader>
-          <DialogTitle className="text-[1.1rem] tracking-[-0.01em]">{title}</DialogTitle>
+          <DialogTitle className="text-[1.1rem] tracking-[-0.01em]">
+            {title}
+          </DialogTitle>
           <DialogDescription className="text-[13.5px] leading-[1.65] text-fg/60">
             {description}
           </DialogDescription>
@@ -53,14 +62,7 @@ export function ConfirmButton({
           <DialogClose asChild>
             <Button variant="ghost">{t.common.cancel}</Button>
           </DialogClose>
-          <Button
-            onClick={() => {
-              setOpen(false);
-              onConfirm();
-            }}
-          >
-            {confirmLabel}
-          </Button>
+          <Button onClick={confirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

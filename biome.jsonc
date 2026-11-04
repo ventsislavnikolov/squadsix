@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // ultracite/biome/core already ignores generated output such as
+  // src/routeTree.gen.ts (`**/*.gen.*`). `tanstack` allows the router's
+  // file names (`match.$id.tsx`, `__root.tsx`).
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/tanstack",
+    "ultracite/biome/vitest"
+  ],
+  // Class sorting reads the theme, so the app's own colors (`text-fg/45`)
+  // sort as the utilities they are.
+  "tailwind": { "stylesheet": "./src/styles.css" },
+  "files": {
+    "includes": ["!public"]
+  }
+}

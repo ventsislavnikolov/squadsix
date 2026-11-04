@@ -6,11 +6,26 @@ import type { Lang, ShortName } from "@/domain/names";
 import type { ErrorCode } from "@/server/functions";
 import { sessionQuery } from "./queries";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+// "в" becomes "във" before a word starting with в or ф ("във Ваня").
+const BEFORE_V_OR_F = /^[вфВФ]/u;
 
 const bg = {
   appTag: "отбори за ритане",
-  nav: { newMatch: "Нов мач", match: "Мач", venues: "Места", history: "История", balls: "Топки", players: "Играчи", rules: "Правила", log: "Лог", signIn: "Вход", signOut: "Изход" },
+  nav: {
+    newMatch: "Нов мач",
+    match: "Мач",
+    venues: "Места",
+    history: "История",
+    balls: "Топки",
+    players: "Играчи",
+    rules: "Правила",
+    log: "Лог",
+    signIn: "Вход",
+    signOut: "Изход",
+  },
   theme: { system: "Системна", light: "Светла", dark: "Тъмна", label: "Тема" },
   lang: { label: "Език", other: "EN" },
   common: {
@@ -25,14 +40,26 @@ const bg = {
     loading: "Зарежда…",
   },
   date: (iso: string, style: "long" | "short" = "long") =>
-    new Date(iso).toLocaleDateString("bg-BG", style === "long"
-      ? { weekday: "long", day: "numeric", month: "long" }
-      : { weekday: "short", day: "numeric", month: "long", year: "numeric" }),
+    new Date(iso).toLocaleDateString(
+      "bg-BG",
+      style === "long"
+        ? { weekday: "long", day: "numeric", month: "long" }
+        : { weekday: "short", day: "numeric", month: "long", year: "numeric" }
+    ),
   /** Kick-off in Sofia time: "вторник, 29 септември · 20:00". */
   when: (iso: string) => {
     const d = new Date(iso);
-    const day = d.toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
-    const time = d.toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
+    const day = d.toLocaleDateString("bg-BG", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "Europe/Sofia",
+    });
+    const time = d.toLocaleTimeString("bg-BG", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Sofia",
+    });
     return `${day.charAt(0).toLocaleUpperCase("bg")}${day.slice(1)} · ${time}`;
   },
   weather: {
@@ -46,10 +73,26 @@ const bg = {
     mmh: "мм/ч",
     before: "Преди мача, за 24 ч",
     pitchLabel: "Терен",
-    pitch: { dry: "сух", damp: "леко влажен", wet: "мокър", soaked: "много мокър" },
-    rain: { faint: "Ръми", light: "Слаб дъжд", moderate: "Умерен дъжд", heavy: "Силен дъжд" },
-    snow: { faint: "Слаб сняг", light: "Слаб сняг", moderate: "Умерен сняг", heavy: "Силен сняг" },
-    showModels: (n: number) => `Виж ${n === 1 ? "модела" : `${n}-те модела`} поотделно`,
+    pitch: {
+      dry: "сух",
+      damp: "леко влажен",
+      wet: "мокър",
+      soaked: "много мокър",
+    },
+    rain: {
+      faint: "Ръми",
+      light: "Слаб дъжд",
+      moderate: "Умерен дъжд",
+      heavy: "Силен дъжд",
+    },
+    snow: {
+      faint: "Слаб сняг",
+      light: "Слаб сняг",
+      moderate: "Умерен сняг",
+      heavy: "Силен сняг",
+    },
+    showModels: (n: number) =>
+      `Виж ${n === 1 ? "модела" : `${n}-те модела`} поотделно`,
     from: {
       ecmwf_ifs025: "Европа",
       icon_seamless: "Германия",
@@ -115,16 +158,28 @@ const bg = {
     map: "Карта",
     by: (name: string) => `Пусна: ${name}`,
     changed: "Променено",
-    field: { date: "ден", time: "час", venue: "място", note: "бележка" } as Record<string, string>,
+    field: {
+      date: "ден",
+      time: "час",
+      venue: "място",
+      note: "бележка",
+    } as Record<string, string>,
     edit: "Промени",
     cancel: "Отмени мача",
     cancelTitle: "Отменяме ли мача?",
-    cancelBody: "Всички записани ще го видят като отменен. Не може да се върне.",
+    cancelBody:
+      "Всички записани ще го видят като отменен. Не може да се върне.",
     cancelReason: "Причина (по желание), напр. „вали“",
     cancelled: "Мачът е отменен.",
     share: "Сподели",
     shared: "Копирано",
-    shareText: (when: string, venue: string, list: string, reserves: string, url: string) =>
+    shareText: (
+      when: string,
+      venue: string,
+      list: string,
+      reserves: string,
+      url: string
+    ) =>
       `${when}${venue ? `\n${venue}` : ""}\n\n${list}${reserves ? `\n\nРезерви:\n${reserves}` : ""}\n\nЗаписвай се: ${url}`,
     quickTime: "Час (по желание)",
     quickVenue: "Място (по желание)",
@@ -138,7 +193,8 @@ const bg = {
     leave: "Отписвам се",
     addOther: "Запиши друг",
     addOtherTitle: "Запиши някого",
-    addOtherNote: "От списъка, а в последните 24 часа и гост. До името ще пише, че си го записал ти.",
+    addOtherNote:
+      "От списъка, а в последните 24 часа и гост. До името ще пише, че си го записал ти.",
     addedBy: (name: string) => `записа го ${name}`,
     remove: "Махни",
     needMore: (n: number) => `Трябват още ${n}.`,
@@ -148,7 +204,8 @@ const bg = {
     closed: "Записването е затворено, мачът е започнал.",
     empty: "Още няма записани. Бъди първият.",
     guestTag: "гост",
-    guestsLater: (when: string) => `Гости може да се записват от ${when} (24 часа преди мача).`,
+    guestsLater: (when: string) =>
+      `Гости може да се записват от ${when} (24 часа преди мача).`,
     you: "ти",
   },
   pick: {
@@ -159,7 +216,8 @@ const bg = {
     regulars: "От офиса",
     regularsNote: (n: number) => `${plural(n, "човек", "души")} в списъка.`,
     guests: "Гости",
-    guestsNote: "Някой отвън, когато не се съберем. Пиши името веднъж, на кирилица или латиница.",
+    guestsNote:
+      "Някой отвън, когато не се съберем. Пиши името веднъж, на кирилица или латиница.",
     guestPlaceholder: "Име на госта, напр. „Мартин Иванов“",
     addGuest: "Добави гост",
     noGuests: "Още няма гости.",
@@ -175,8 +233,10 @@ const bg = {
     eyebrow: (d: string) => `Мач · ${d}`,
     titleOpen: "Три варианта. Гласувайте.",
     titleLocked: "Отборите са заключени.",
-    leadOpen: "Гласуват само 12-те, които играят. Един глас на човек, ако гласуваш пак, гласът ти се мести.",
-    leadLocked: "Спечели вариантът с най-много гласове. При равенство печели първият.",
+    leadOpen:
+      "Гласуват само 12-те, които играят. Един глас на човек, ако гласуваш пак, гласът ти се мести.",
+    leadLocked:
+      "Спечели вариантът с най-много гласове. При равенство печели първият.",
     again: "Нови варианти",
     againTitle: "Нови варианти?",
     againBody: (votes: number) =>
@@ -210,33 +270,50 @@ const bg = {
     yourVote: "Твоят глас",
     scaleLow: "едностранен",
     scaleHigh: "напълно равен",
-    rationale: (label: string, conf: number, stacked: number, preferred: number) =>
+    rationale: (
+      label: string,
+      conf: number,
+      stacked: number,
+      preferred: number
+    ) =>
       `Оценка „${label}“ (${conf}% сигурност). Шанс да изглежда натъкмен: ${stacked}%. Вероятност да е най-добрият мач: ${preferred}%.`,
-    rationaleFallback: (gap: string) => `Най-малка разлика в сумата на оценките (${gap}).`,
-    fairness: { "one-sided": "едностранен", uneven: "неравен", close: "оспорван", "dead even": "напълно равен" } as Record<string, string>,
+    rationaleFallback: (gap: string) =>
+      `Най-малка разлика в сумата на оценките (${gap}).`,
+    fairness: {
+      "one-sided": "едностранен",
+      uneven: "неравен",
+      close: "оспорван",
+      "dead even": "напълно равен",
+    } as Record<string, string>,
     howTitle: "Как реши Jev",
-    howNote: "Jev не пише текст и не смята. Той отговаря на въпроси с „да/не“, „избери едно“ или „дай оценка“, и казва колко е сигурен. Ето всяка стъпка.",
+    howNote:
+      "Jev не пише текст и не смята. Той отговаря на въпроси с „да/не“, „избери едно“ или „дай оценка“, и казва колко е сигурен. Ето всяка стъпка.",
     result: "Резултат",
     resultNote: "Напиши резултата или само избери кой спечели.",
     resultSaved: "Записано.",
     notVoted: (names: string) => `Не са гласували: ${names}`,
-    shareText: (date: string, a: string, b: string) => `Отбори за ${date}\n\nОтбор А: ${a}\nОтбор Б: ${b}`,
+    shareText: (date: string, a: string, b: string) =>
+      `Отбори за ${date}\n\nОтбор А: ${a}\nОтбор Б: ${b}`,
   },
   trace: {
     who: { code: "код", jev: "Jev" },
-    measure: (combos: number, n: number) => `Кодът пробва всички ${combos} разпределения и остави ${n} почти равни и различни`,
+    measure: (combos: number, n: number) =>
+      `Кодът пробва всички ${combos} разпределения и остави ${n} почти равни и различни`,
     judge: (c: string) => `Jev оцени вариант ${c}`,
     compare: "Jev сравни всички варианти и избра най-добрия",
-    decideJev: "Кодът подреди: оценка − ½·„натъкмен“ + ½·„избран“, и взе първите 3",
+    decideJev:
+      "Кодът подреди: оценка − ½·„натъкмен“ + ½·„избран“, и взе първите 3",
     decideFallback: "Без Jev: взимат се трите с най-малка разлика",
     error: "Jev върна грешка",
-    measureDetail: (n: number) => `${n} кандидата към Jev. Всички са 6 на 6 и са проверени от кода.`,
+    measureDetail: (n: number) =>
+      `${n} кандидата към Jev. Всички са 6 на 6 и са проверени от кода.`,
     measureRules: (n: number, broken: number) =>
       `Правила за днешните 12: ${n}. ${broken === 0 ? "Всички са спазени." : `Не може всички: нарушени ${broken}, по-малко не става.`}`,
     picked: "избрани",
     tokens: "токена",
     whatJevSaw: "Какво видя Jev (state + въпроси)",
-    hiddenState: "Какво точно видя Jev вижда само админът, защото вътре има оценки.",
+    hiddenState:
+      "Какво точно видя Jev вижда само админът, защото вътре има оценки.",
     yes: "да",
     no: "не",
   },
@@ -253,7 +330,8 @@ const bg = {
   },
   balls: {
     eyebrow: "Топките",
-    title: (who: string) => `Топките са ${/^[вфВФ]/.test(who) ? "във" : "в"} ${who}.`,
+    title: (who: string) =>
+      `Топките са ${BEFORE_V_OR_F.test(who) ? "във" : "в"} ${who}.`,
     lead: "След всеки мач някой ги взима. Който ги вземе, да го отбележи тук.",
     since: (when: string) => `от ${when}`,
     mine: "Взех ги аз",
@@ -284,7 +362,8 @@ const bg = {
     hidden: "Скрит",
     add: "Добави играч",
     addTitle: "Нов играч",
-    unratedCount: (n: number) => `${plural(n, "човек е", "души са")} без оценка и се смятат за 2.5.`,
+    unratedCount: (n: number) =>
+      `${plural(n, "човек е", "души са")} без оценка и се смятат за 2.5.`,
     shown: "Показва се",
     lastPlayed: "Последно",
     never: "никога",
@@ -301,7 +380,8 @@ const bg = {
     title: "Правила",
     lead: "Кой с кого да играе. Виждаш ги само ти и никъде другаде не се споменават, нито пред Jev. Отборите винаги ги спазват, а ако днес не може, нарушават възможно най-малко.",
     together: "Заедно",
-    togetherNote: "2 или 3 души, винаги в един отбор. Всеки е в най-много една група.",
+    togetherNote:
+      "2 или 3 души, винаги в един отбор. Всеки е в най-много една група.",
     apart: "Разделени",
     apartNote: "Двама, никога в един отбор. Всеки има най-много двама такива.",
     empty: "Няма правила.",
@@ -332,12 +412,14 @@ const bg = {
     cancelled: "Мачът е отменен.",
     "not-allowed": "Това може само този, който е пуснал обявата, или админът.",
     "not-full": "Трябват 12 души.",
-    "bad-date": "Денят трябва да е от днес до 14 дни напред, а часът още да не е минал.",
+    "bad-date":
+      "Денят трябва да е от днес до 14 дни напред, а часът още да не е минал.",
     who: "Първо избери кой си.",
     "rule-exists": "Това правило вече го има.",
     "rule-taken": "Някой от тях вече е в група „Заедно“.",
     "rule-limit": "Някой от двамата вече е разделен от двама души.",
-    "rule-conflict": "Това противоречи на друго правило: едни и същи хора хем заедно, хем разделени.",
+    "rule-conflict":
+      "Това противоречи на друго правило: едни и същи хора хем заедно, хем разделени.",
     generic: "Нещо се обърка. Опитай пак.",
   } satisfies Record<ErrorCode | "generic", string>,
 };
@@ -346,7 +428,18 @@ type Dict = typeof bg;
 
 const en: Dict = {
   appTag: "teams for the kickabout",
-  nav: { newMatch: "New game", match: "Game", venues: "Venues", history: "History", balls: "Balls", players: "Players", rules: "Rules", log: "Log", signIn: "Sign in", signOut: "Sign out" },
+  nav: {
+    newMatch: "New game",
+    match: "Game",
+    venues: "Venues",
+    history: "History",
+    balls: "Balls",
+    players: "Players",
+    rules: "Rules",
+    log: "Log",
+    signIn: "Sign in",
+    signOut: "Sign out",
+  },
   theme: { system: "System", light: "Light", dark: "Dark", label: "Theme" },
   lang: { label: "Language", other: "БГ" },
   common: {
@@ -361,13 +454,25 @@ const en: Dict = {
     loading: "Loading…",
   },
   date: (iso, style = "long") =>
-    new Date(iso).toLocaleDateString("en-GB", style === "long"
-      ? { weekday: "long", day: "numeric", month: "long" }
-      : { weekday: "short", day: "numeric", month: "long", year: "numeric" }),
+    new Date(iso).toLocaleDateString(
+      "en-GB",
+      style === "long"
+        ? { weekday: "long", day: "numeric", month: "long" }
+        : { weekday: "short", day: "numeric", month: "long", year: "numeric" }
+    ),
   when: (iso) => {
     const d = new Date(iso);
-    const day = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
-    const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
+    const day = d.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "Europe/Sofia",
+    });
+    const time = d.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Sofia",
+    });
     return `${day} · ${time}`;
   },
   weather: {
@@ -381,10 +486,26 @@ const en: Dict = {
     mmh: "mm/h",
     before: "Before the game, in 24 h",
     pitchLabel: "Pitch",
-    pitch: { dry: "dry", damp: "slightly damp", wet: "wet", soaked: "very wet" },
-    rain: { faint: "Drizzle", light: "Light rain", moderate: "Moderate rain", heavy: "Heavy rain" },
-    snow: { faint: "Light snow", light: "Light snow", moderate: "Moderate snow", heavy: "Heavy snow" },
-    showModels: (n) => (n === 1 ? "See the model on its own" : `See the ${n} models one by one`),
+    pitch: {
+      dry: "dry",
+      damp: "slightly damp",
+      wet: "wet",
+      soaked: "very wet",
+    },
+    rain: {
+      faint: "Drizzle",
+      light: "Light rain",
+      moderate: "Moderate rain",
+      heavy: "Heavy rain",
+    },
+    snow: {
+      faint: "Light snow",
+      light: "Light snow",
+      moderate: "Moderate snow",
+      heavy: "Heavy snow",
+    },
+    showModels: (n) =>
+      n === 1 ? "See the model on its own" : `See the ${n} models one by one`,
     from: {
       ecmwf_ifs025: "Europe",
       icon_seamless: "Germany",
@@ -396,7 +517,8 @@ const en: Dict = {
     mm: "mm",
     radar: "Radar",
     radarDry: "dry for the whole game",
-    radarWet: (wet, total, max) => `rain in ${wet} of ${total} min, up to ${max} mm/h`,
+    radarWet: (wet, total, max) =>
+      `rain in ${wet} of ${total} min, up to ${max} mm/h`,
     kind: {
       clear: "Clear",
       partly: "Partly cloudy",
@@ -453,7 +575,8 @@ const en: Dict = {
     edit: "Edit",
     cancel: "Cancel game",
     cancelTitle: "Cancel this game?",
-    cancelBody: "Everyone signed up will see it as cancelled. It can't be undone.",
+    cancelBody:
+      "Everyone signed up will see it as cancelled. It can't be undone.",
     cancelReason: "Reason (optional), e.g. “rain”",
     cancelled: "This game is cancelled.",
     share: "Share",
@@ -472,17 +595,20 @@ const en: Dict = {
     leave: "I'm out",
     addOther: "Add someone",
     addOtherTitle: "Sign someone up",
-    addOtherNote: "From the list, or a guest in the last 24 hours. It will say you added them.",
+    addOtherNote:
+      "From the list, or a guest in the last 24 hours. It will say you added them.",
     addedBy: (name) => `added by ${name}`,
     remove: "Remove",
     needMore: (n) => `${n} more needed.`,
     full: "Twelve in. Teams can be made.",
-    autoTeams: "If nobody presses it, teams are made two hours before kick-off.",
+    autoTeams:
+      "If nobody presses it, teams are made two hours before kick-off.",
     makeTeams: "Make teams",
     closed: "Sign-up is closed — the game has started.",
     empty: "Nobody yet. Be the first.",
     guestTag: "guest",
-    guestsLater: (when) => `Guests can be signed up from ${when} (24 hours before the game).`,
+    guestsLater: (when) =>
+      `Guests can be signed up from ${when} (24 hours before the game).`,
     you: "you",
   },
   pick: {
@@ -493,7 +619,8 @@ const en: Dict = {
     regulars: "From the office",
     regularsNote: (n) => `${plural(n, "person", "people")} on the list.`,
     guests: "Guests",
-    guestsNote: "Someone from outside, when we're short. Type the name once, in Cyrillic or Latin.",
+    guestsNote:
+      "Someone from outside, when we're short. Type the name once, in Cyrillic or Latin.",
     guestPlaceholder: "Guest's name, e.g. “Martin Ivanov”",
     addGuest: "Add guest",
     noGuests: "No guests yet.",
@@ -509,8 +636,10 @@ const en: Dict = {
     eyebrow: (d) => `Game · ${d}`,
     titleOpen: "Three options. Vote.",
     titleLocked: "Teams are locked.",
-    leadOpen: "Only the 12 playing vote. One vote each; voting again moves your vote.",
-    leadLocked: "The option with the most votes won. A tie goes to the first one.",
+    leadOpen:
+      "Only the 12 playing vote. One vote each; voting again moves your vote.",
+    leadLocked:
+      "The option with the most votes won. A tie goes to the first one.",
     again: "New options",
     againTitle: "New options?",
     againBody: (votes) =>
@@ -534,7 +663,8 @@ const en: Dict = {
     whoAreYouNote: "Pick your name. This phone will remember it.",
     votingAs: (name) => `Voting as ${name}.`,
     notYou: "Not you?",
-    notInSquad: "You're not in today's 12, so you don't vote. Watching is fine.",
+    notInSquad:
+      "You're not in today's 12, so you don't vote. Watching is fine.",
     option: (n) => `Option ${n}`,
     difference: "gap",
     votes: (n) => plural(n, "vote", "votes"),
@@ -547,30 +677,41 @@ const en: Dict = {
     rationale: (label, conf, stacked, preferred) =>
       `Rated “${label}” (${conf}% confident). Chance it looks stacked: ${stacked}%. Chance it's the best game: ${preferred}%.`,
     rationaleFallback: (gap) => `Smallest gap in total rating (${gap}).`,
-    fairness: { "one-sided": "one-sided", uneven: "uneven", close: "close", "dead even": "dead even" },
+    fairness: {
+      "one-sided": "one-sided",
+      uneven: "uneven",
+      close: "close",
+      "dead even": "dead even",
+    },
     howTitle: "How Jev decided",
-    howNote: "Jev doesn't write text or do sums. It answers yes/no, pick-one or score questions and says how sure it is. Here is every step.",
+    howNote:
+      "Jev doesn't write text or do sums. It answers yes/no, pick-one or score questions and says how sure it is. Here is every step.",
     result: "Result",
     resultNote: "Type the score, or just pick who won.",
     resultSaved: "Saved.",
     notVoted: (names) => `Not voted yet: ${names}`,
-    shareText: (date, a, b) => `Teams for ${date}\n\nTeam A: ${a}\nTeam B: ${b}`,
+    shareText: (date, a, b) =>
+      `Teams for ${date}\n\nTeam A: ${a}\nTeam B: ${b}`,
   },
   trace: {
     who: { code: "code", jev: "Jev" },
-    measure: (combos, n) => `The code tried all ${combos} splits and kept ${n} near-even, distinct ones`,
+    measure: (combos, n) =>
+      `The code tried all ${combos} splits and kept ${n} near-even, distinct ones`,
     judge: (c) => `Jev rated option ${c}`,
     compare: "Jev compared all options and picked the best",
-    decideJev: "The code ranked: score − ½·“stacked” + ½·“picked”, and kept the top 3",
+    decideJev:
+      "The code ranked: score − ½·“stacked” + ½·“picked”, and kept the top 3",
     decideFallback: "Without Jev: the three with the smallest gap",
     error: "Jev returned an error",
-    measureDetail: (n) => `${n} candidates sent to Jev. All are 6-a-side and checked by the code.`,
+    measureDetail: (n) =>
+      `${n} candidates sent to Jev. All are 6-a-side and checked by the code.`,
     measureRules: (n, broken) =>
       `Rules binding today's 12: ${n}. ${broken === 0 ? "All kept." : `They can't all hold: ${broken} broken, the fewest possible.`}`,
     picked: "picked",
     tokens: "tokens",
     whatJevSaw: "What Jev saw (state + questions)",
-    hiddenState: "Only the admin can see exactly what Jev saw, because it contains ratings.",
+    hiddenState:
+      "Only the admin can see exactly what Jev saw, because it contains ratings.",
     yes: "yes",
     no: "no",
   },
@@ -618,7 +759,8 @@ const en: Dict = {
     hidden: "Hidden",
     add: "Add player",
     addTitle: "New player",
-    unratedCount: (n) => `${plural(n, "person is", "people are")} unrated and counted as 2.5.`,
+    unratedCount: (n) =>
+      `${plural(n, "person is", "people are")} unrated and counted as 2.5.`,
     shown: "Shown as",
     lastPlayed: "Last game",
     never: "never",
@@ -635,9 +777,11 @@ const en: Dict = {
     title: "Rules",
     lead: "Who plays with whom. Only you see these, and nothing else mentions them, Jev included. Teams always keep them, and when a day makes that impossible, break as few as they can.",
     together: "Together",
-    togetherNote: "2 or 3 people, always on the same team. Each person is in at most one group.",
+    togetherNote:
+      "2 or 3 people, always on the same team. Each person is in at most one group.",
     apart: "Apart",
-    apartNote: "Two people, never on the same team. Each person has at most two of these.",
+    apartNote:
+      "Two people, never on the same team. Each person has at most two of these.",
     empty: "No rules.",
     pick: "Pick",
     optional: "third (optional)",
@@ -662,16 +806,19 @@ const en: Dict = {
     "bad-login": "Wrong email or password.",
     "admin-only": "Admin only.",
     started: "The game has already started.",
-    "guest-early": "Guests can only be signed up in the last 24 hours before the game.",
+    "guest-early":
+      "Guests can only be signed up in the last 24 hours before the game.",
     cancelled: "This game is cancelled.",
     "not-allowed": "Only whoever announced it, or the admin, can do that.",
     "not-full": "Needs twelve people.",
-    "bad-date": "Pick a day from today to 14 days ahead, at a time that hasn't passed.",
+    "bad-date":
+      "Pick a day from today to 14 days ahead, at a time that hasn't passed.",
     who: "Pick who you are first.",
     "rule-exists": "That rule already exists.",
     "rule-taken": "One of them is already in a Together group.",
     "rule-limit": "One of the two is already kept apart from two people.",
-    "rule-conflict": "That contradicts another rule: the same people both together and apart.",
+    "rule-conflict":
+      "That contradicts another rule: the same people both together and apart.",
     generic: "Something went wrong. Try again.",
   },
 };
@@ -680,7 +827,7 @@ const DICTS: Record<Lang, Dict> = { bg, en };
 
 export function useI18n() {
   const { data: session } = useSuspenseQuery(sessionQuery);
-  const lang = session.lang;
+  const { lang } = session;
   const t = DICTS[lang];
   return {
     lang,

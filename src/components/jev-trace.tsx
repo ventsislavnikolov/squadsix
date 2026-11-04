@@ -9,13 +9,19 @@ import type { HarnessStep, Json } from "@/server/jev-harness";
 export function JevTrace({ steps }: { steps: HarnessStep[] }) {
   const { t } = useI18n();
   // Judges run in parallel and finish in any order; show them in candidate order.
-  const order = { measure: 0, judge: 1, compare: 2, decide: 3, error: 4 } as const;
+  const order = {
+    measure: 0,
+    judge: 1,
+    compare: 2,
+    decide: 3,
+    error: 4,
+  } as const;
   const ordered = [...steps].sort(
     (a, b) =>
       order[a.kind] - order[b.kind] ||
       (a.kind === "judge" && b.kind === "judge"
         ? Number(a.candidate.slice(1)) - Number(b.candidate.slice(1))
-        : 0),
+        : 0)
   );
 
   const label = (s: HarnessStep) => {
@@ -30,35 +36,41 @@ export function JevTrace({ steps }: { steps: HarnessStep[] }) {
         return s.mode === "jev" ? t.trace.decideJev : t.trace.decideFallback;
       case "error":
         return t.trace.error;
+      // A step kind this version does not know (an older or newer trace): no label.
+      default:
+        return null;
     }
   };
-  const byJev = (s: HarnessStep) => s.kind === "judge" || s.kind === "compare" || s.kind === "error";
+  const byJev = (s: HarnessStep) =>
+    s.kind === "judge" || s.kind === "compare" || s.kind === "error";
 
   return (
     <ol className="border-t border-fg/[0.07]">
       {ordered.map((step, i) => (
-        <li key={i} className="border-b border-fg/[0.07]">
+        <li className="border-b border-fg/[0.07]" key={stepKey(step)}>
           <details className="group">
             <summary className="flex cursor-pointer list-none items-baseline gap-3 py-3 text-[13.5px] sm:gap-4 [&::-webkit-details-marker]:hidden">
-              <span className="w-6 shrink-0 font-mono text-[11px] tabular-nums text-fg/30">
+              <span className="w-6 shrink-0 font-mono text-[11px] text-fg/30 tabular-nums">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span
                 className={cn(
-                  "w-10 shrink-0 font-mono text-[11px] uppercase tracking-[0.14em]",
+                  "w-10 shrink-0 font-mono text-[11px] tracking-[0.14em] uppercase",
                   byJev(step) ? "text-primary" : "text-fg/45",
-                  step.kind === "error" && "text-destructive",
+                  step.kind === "error" && "text-destructive"
                 )}
               >
                 {byJev(step) ? t.trace.who.jev : t.trace.who.code}
               </span>
               <span className="min-w-0 flex-1 text-fg/80">{label(step)}</span>
-              {"ms" in step && (
-                <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-fg/40">
+              {"ms" in step ? (
+                <span className="shrink-0 font-mono text-[11.5px] text-fg/40 tabular-nums">
                   {step.ms} ms
                 </span>
-              )}
-              <span className="shrink-0 text-fg/30 transition-transform group-open:rotate-90">›</span>
+              ) : null}
+              <span className="shrink-0 text-fg/30 transition-transform group-open:rotate-90">
+                ›
+              </span>
             </summary>
             <div className="pb-4 pl-9 sm:pl-[5.5rem]">
               <StepDetail step={step} />
@@ -68,6 +80,18 @@ export function JevTrace({ steps }: { steps: HarnessStep[] }) {
       ))}
     </ol>
   );
+}
+
+/** A step's identity within one run: one measure, compare and decide, one judge per candidate. */
+function stepKey(step: HarnessStep): string {
+  switch (step.kind) {
+    case "judge":
+      return `judge:${step.candidate}`;
+    case "error":
+      return `error:${step.message}`;
+    default:
+      return step.kind;
+  }
 }
 
 function StepDetail({ step }: { step: HarnessStep }) {
@@ -91,7 +115,9 @@ function StepDetail({ step }: { step: HarnessStep }) {
         </p>
       );
     case "error":
-      return <p className="font-mono text-[12px] text-destructive">{step.message}</p>;
+      return (
+        <p className="font-mono text-[12px] text-destructive">{step.message}</p>
+      );
     case "judge":
     case "compare":
       return (
@@ -109,12 +135,19 @@ function StepDetail({ step }: { step: HarnessStep }) {
                 {t.trace.whatJevSaw}
               </summary>
               <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-fg/[0.07] bg-fg/[0.04] p-3 font-mono text-[11px] leading-[1.6] text-fg/65">
-                {JSON.stringify({ state: step.state, questions: step.questions }, null, 2)}
+                {JSON.stringify(
+                  { state: step.state, questions: step.questions },
+                  null,
+                  2
+                )}
               </pre>
             </details>
           )}
         </div>
       );
+    // A step kind this version does not know: no details, rather than a crash.
+    default:
+      return null;
   }
 }
 
@@ -132,16 +165,20 @@ function Answers({ answers }: { answers: { [key: string]: Json } }) {
           /** Score answers key probabilities by level index; the legend names them. */
           legend?: Record<string, string>;
         };
-        const label = (key: string) => {
-          const level = a.legend?.[key] ?? key;
+        const label = (index: string) => {
+          const level = a.legend?.[index] ?? index;
           return t.match.fairness[level] ?? level;
         };
         const dist =
           a.type === "boolean"
             ? { [t.trace.yes]: a.probability, [t.trace.no]: 1 - a.probability }
-            : Object.fromEntries(Object.entries(a.probabilities ?? {}).map(([k, p]) => [label(k), p]));
-        const value =
-          a.value === true ? t.trace.yes : a.value === false ? t.trace.no : label(String(a.value));
+            : Object.fromEntries(
+                Object.entries(a.probabilities ?? {}).map(([k, p]) => [
+                  label(k),
+                  p,
+                ])
+              );
+        const value = answerText(a.value, t.trace, label);
         return (
           <div key={key}>
             <p className="eyebrow">{key}</p>
@@ -152,16 +189,23 @@ function Answers({ answers }: { answers: { [key: string]: Json } }) {
               {Object.entries(dist)
                 .sort((x, y) => y[1] - x[1])
                 .slice(0, 6)
-                .map(([label, p]) => (
-                  <li key={label} className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
-                    <span className="w-20 shrink-0 truncate text-fg/50">{label}</span>
+                .map(([name, p]) => (
+                  <li
+                    className="flex items-center gap-2 font-mono text-[11px] tabular-nums"
+                    key={name}
+                  >
+                    <span className="w-20 shrink-0 truncate text-fg/50">
+                      {name}
+                    </span>
                     <span className="h-1.5 flex-1 rounded-full bg-fg/[0.07]">
                       <span
                         className="block h-full rounded-full bg-primary/70"
                         style={{ width: `${Math.round(p * 100)}%` }}
                       />
                     </span>
-                    <span className="w-9 text-right text-fg/60">{Math.round(p * 100)}%</span>
+                    <span className="w-9 text-right text-fg/60">
+                      {Math.round(p * 100)}%
+                    </span>
                   </li>
                 ))}
             </ul>
@@ -170,4 +214,18 @@ function Answers({ answers }: { answers: { [key: string]: Json } }) {
       })}
     </div>
   );
+}
+
+function answerText(
+  value: string | boolean,
+  words: { yes: string; no: string },
+  label: (level: string) => string
+): string {
+  if (value === true) {
+    return words.yes;
+  }
+  if (value === false) {
+    return words.no;
+  }
+  return label(String(value));
 }
