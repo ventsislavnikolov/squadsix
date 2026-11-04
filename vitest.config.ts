@@ -16,6 +16,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/components/ui/**", "src/routeTree.gen.ts"],
       reporter: [["text", { skipFull: true }], "text-summary"],
+      thresholds: {
+        branches: 90,
+        functions: 90,
+        lines: 90,
+        statements: 90,
+      },
     },
   },
 });
