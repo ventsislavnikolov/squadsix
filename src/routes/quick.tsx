@@ -350,9 +350,10 @@ function GuestForm({ onAdded }: { onAdded: (id: string) => void }) {
 
   const form = useForm({
     defaultValues: { name: "" },
-    onSubmit: async ({ value, formApi }) => {
-      await add.mutateAsync(value.name.trim());
-      formApi.reset();
+    // `mutate`, not `mutateAsync`: a refusal is shown from `add.error` below and
+    // must not also escape as an unhandled rejection.
+    onSubmit: ({ value, formApi }) => {
+      add.mutate(value.name.trim(), { onSuccess: () => formApi.reset() });
     },
   });
 
