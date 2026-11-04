@@ -24,8 +24,11 @@ function read(): string {
 
 function write(playerId: string) {
   try {
-    if (playerId) localStorage.setItem(KEY, playerId);
-    else localStorage.removeItem(KEY);
+    if (playerId) {
+      localStorage.setItem(KEY, playerId);
+    } else {
+      localStorage.removeItem(KEY);
+    }
   } catch {
     /* private mode — the cookie still remembers */
   }
@@ -36,6 +39,10 @@ function subscribe(cb: () => void) {
   return () => listeners.delete(cb);
 }
 
+// The cookie copy is a convenience: the browser keeps the choice either way, so a failed
+// save on the server changes nothing the player sees.
+const ignoreRememberFailure = () => undefined;
+
 export function useMe(): [string, (playerId: string) => void] {
   const qc = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQuery);
@@ -43,26 +50,35 @@ export function useMe(): [string, (playerId: string) => void] {
   const me = useSyncExternalStore(
     subscribe,
     () => read() || cookie,
-    () => cookie,
+    () => cookie
   );
 
   // Once per page load, copy whichever store still has the choice into the other one.
   useEffect(() => {
-    if (synced) return;
+    if (synced) {
+      return;
+    }
     synced = true;
     const local = read();
-    if (!local && cookie) write(cookie);
-    else if (local && local !== cookie) void rememberMe({ data: { playerId: local } }).catch(() => {});
+    if (!local && cookie) {
+      write(cookie);
+    } else if (local && local !== cookie) {
+      rememberMe({ data: { playerId: local } }).catch(ignoreRememberFailure);
+    }
   }, [cookie]);
 
   const setMe = useCallback(
     (playerId: string) => {
       write(playerId);
-      qc.setQueryData<Session>(sessionQuery.queryKey, (s) => (s ? { ...s, me: playerId } : s));
-      void rememberMe({ data: { playerId } }).catch(() => {});
-      listeners.forEach((l) => l());
+      qc.setQueryData<Session>(sessionQuery.queryKey, (s) =>
+        s ? { ...s, me: playerId } : s
+      );
+      rememberMe({ data: { playerId } }).catch(ignoreRememberFailure);
+      for (const listener of listeners) {
+        listener();
+      }
     },
-    [qc],
+    [qc]
   );
   return [me, setMe];
 }

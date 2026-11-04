@@ -12,18 +12,19 @@ export const SQUAD_SIZE = TEAM_SIZE * 2;
 export const GUEST_RATING = 2.5;
 
 /** What the balancer needs to know about a person — nothing about their name. */
-export type Player = {
+export interface Player {
   id: string;
+  isGuest: boolean;
   /** null = not rated (a new guest, or a regular the admin has not scored yet). */
   rating: number | null;
-  isGuest: boolean;
-};
+}
 
-export type Split = { teamA: string[]; teamB: string[] };
+export interface Split {
+  teamA: string[];
+  teamB: string[];
+}
 
-export type SplitScore = {
-  totalA: number;
-  totalB: number;
+export interface SplitScore {
   /** |totalA - totalB| — the number a proposal is judged on first. */
   gap: number;
   guestsA: number;
@@ -31,15 +32,29 @@ export type SplitScore = {
   /** Best player on each side — a split with both stars on one team is unfair at any gap. */
   topA: number;
   topB: number;
-};
+  totalA: number;
+  totalB: number;
+}
+
+/** The player with this id; an id from outside the squad is a bug, so it throws. */
+export function playerById(byId: Map<string, Player>, id: string): Player {
+  const player = byId.get(id);
+  if (!player) {
+    throw new Error(`Unknown player id: ${id}`);
+  }
+  return player;
+}
 
 export function effectiveRating(p: Pick<Player, "rating">): number {
   return p.rating ?? GUEST_RATING;
 }
 
-export function scoreSplit(split: Split, byId: Map<string, Player>): SplitScore {
+export function scoreSplit(
+  split: Split,
+  byId: Map<string, Player>
+): SplitScore {
   const side = (ids: string[]) => {
-    const ps = ids.map((id) => byId.get(id)!);
+    const ps = ids.map((id) => playerById(byId, id));
     return {
       total: round1(ps.reduce((s, p) => s + effectiveRating(p), 0)),
       guests: ps.filter((p) => p.rating === null).length,
@@ -70,10 +85,20 @@ export function splitProblem(split: Split, squad: Player[]): string | null {
     return `Each team needs exactly ${TEAM_SIZE} players; got ${split.teamA.length} and ${split.teamB.length}.`;
   }
   const unknown = all.filter((id) => !ids.has(id));
-  if (unknown.length) return `Unknown player ids: ${unknown.join(", ")}.`;
+  if (unknown.length) {
+    return `Unknown player ids: ${unknown.join(", ")}.`;
+  }
   const seen = new Set<string>();
-  const dup = all.filter((id) => (seen.has(id) ? true : (seen.add(id), false)));
-  if (dup.length) return `Players listed twice: ${dup.join(", ")}.`;
+  const dup: string[] = [];
+  for (const id of all) {
+    if (seen.has(id)) {
+      dup.push(id);
+    }
+    seen.add(id);
+  }
+  if (dup.length) {
+    return `Players listed twice: ${dup.join(", ")}.`;
+  }
   return null;
 }
 
@@ -92,19 +117,29 @@ export function splitKey(split: Split): string {
  * Rules come first: only the splits that break the fewest rule pairs are considered —
  * none, whenever that is possible — and fairness chooses among those.
  */
-export function bestSplits(squad: Player[], count = 3, rules: Rules = NO_RULES): Split[] {
-  if (squad.length !== SQUAD_SIZE) return [];
-  const byId = new Map(squad.map((p) => [p.id, p]));
+export function bestSplits(
+  squad: Player[],
+  count = 3,
+  rules: Rules = NO_RULES
+): Split[] {
   const [first, ...rest] = squad;
+  if (squad.length !== SQUAD_SIZE || !first) {
+    return [];
+  }
+  const byId = new Map(squad.map((p) => [p.id, p]));
   const candidates: { split: Split; score: SplitScore; broken: number }[] = [];
 
   // Fixing the first player on team A halves the search: each game is seen once.
   for (const combo of combinations(rest, TEAM_SIZE - 1)) {
-    const teamA = [first!.id, ...combo.map((p) => p.id)];
+    const teamA = [first.id, ...combo.map((p) => p.id)];
     const inA = new Set(teamA);
     const teamB = squad.filter((p) => !inA.has(p.id)).map((p) => p.id);
     const split = { teamA, teamB };
-    candidates.push({ split, score: scoreSplit(split, byId), broken: brokenRules(split, rules) });
+    candidates.push({
+      split,
+      score: scoreSplit(split, byId),
+      broken: brokenRules(split, rules),
+    });
   }
 
   const fewest = Math.min(...candidates.map((c) => c.broken));
@@ -117,8 +152,13 @@ export function bestSplits(squad: Player[], count = 3, rules: Rules = NO_RULES):
   const picked: Split[] = [];
   for (const most of [TEAM_SIZE - 2, TEAM_SIZE - 1]) {
     for (const c of legal) {
-      if (picked.length === count) return picked;
-      if (!picked.includes(c.split) && picked.every((p) => overlap(p, c.split) <= most)) {
+      if (picked.length === count) {
+        return picked;
+      }
+      if (
+        !picked.includes(c.split) &&
+        picked.every((p) => overlap(p, c.split) <= most)
+      ) {
         picked.push(c.split);
       }
     }
@@ -135,16 +175,26 @@ export function overlap(x: Split, y: Split): number {
 
 function rank(s: SplitScore): number {
   // Gap dominates; guests piled on one side, then lopsided best players, break ties.
-  return s.gap * 100 + Math.abs(s.guestsA - s.guestsB) * 10 + Math.abs(s.topA - s.topB);
+  return (
+    s.gap * 100 +
+    Math.abs(s.guestsA - s.guestsB) * 10 +
+    Math.abs(s.topA - s.topB)
+  );
 }
 
-function* combinations<T>(items: T[], k: number, start = 0, acc: T[] = []): Generator<T[]> {
+function* combinations<T>(
+  items: T[],
+  k: number,
+  start = 0,
+  acc: T[] = []
+): Generator<T[]> {
   if (acc.length === k) {
     yield acc;
     return;
   }
-  for (let i = start; i <= items.length - (k - acc.length); i++) {
-    yield* combinations(items, k, i + 1, [...acc, items[i]!]);
+  const end = items.length - (k - acc.length) + 1;
+  for (const [offset, item] of items.slice(start, end).entries()) {
+    yield* combinations(items, k, start + offset + 1, [...acc, item]);
   }
 }
 

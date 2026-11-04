@@ -9,20 +9,20 @@ import type { MatchdayView } from "@/server/repo";
 // links must live here. squadsix.vercel.app still serves the same app.
 export const SITE = "https://squadsix.ventsislavnikolov.com";
 
-export type Preview = {
+export interface Preview {
   /** Big word on the picture: what state the game is in. */
   badge: string;
-  /** Kick-off, or the day for a game made on the spot. */
-  when: string;
-  venue: string | null;
   /** "7/12 записани", or the result once there is one. */
   count: string;
-  /** Page title and og:title. */
-  title: string;
   /** og:description. */
   description: string;
+  /** Page title and og:title. */
+  title: string;
   tone: "open" | "full" | "locked" | "cancelled";
-};
+  venue: string | null;
+  /** Kick-off, or the day for a game made on the spot. */
+  when: string;
+}
 
 const LOCALE: Record<Lang, string> = { bg: "bg-BG", en: "en-GB" };
 
@@ -46,8 +46,10 @@ const WORDS = {
     newGame: "Нов мач",
     signed: (n: number) => `${n}/12 записани`,
     reserves: (n: number) => `${n} резерви`,
-    fullBody: (reserves: string) => `Пълен: 12/12${reserves}. Можеш да се запишеш като резерва.`,
-    openBody: (n: number) => `Записани ${n}/12, трябват още ${12 - n}. Запиши се!`,
+    fullBody: (reserves: string) =>
+      `Пълен: 12/12${reserves}. Можеш да се запишеш като резерва.`,
+    openBody: (n: number) =>
+      `Записани ${n}/12, трябват още ${12 - n}. Запиши се!`,
   },
   en: {
     cancelled: "Cancelled",
@@ -68,30 +70,49 @@ const WORDS = {
     newGame: "New game",
     signed: (n: number) => `${n}/12 signed up`,
     reserves: (n: number) => `${n} ${n === 1 ? "reserve" : "reserves"}`,
-    fullBody: (reserves: string) => `Full: 12/12${reserves}. You can sign up as a reserve.`,
-    openBody: (n: number) => `${n}/12 signed up, ${12 - n} more needed. Sign up!`,
+    fullBody: (reserves: string) =>
+      `Full: 12/12${reserves}. You can sign up as a reserve.`,
+    openBody: (n: number) =>
+      `${n}/12 signed up, ${12 - n} more needed. Sign up!`,
   },
 } satisfies Record<Lang, unknown>;
 
-const cap = (s: string, lang: Lang) => s.charAt(0).toLocaleUpperCase(lang) + s.slice(1);
+const cap = (s: string, lang: Lang) =>
+  s.charAt(0).toLocaleUpperCase(lang) + s.slice(1);
 
 function whenOf(day: MatchdayView, lang: Lang): string {
   const locale = LOCALE[lang];
   if (day.startsAt) {
     const d = new Date(day.startsAt);
-    const date = d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Sofia" });
-    const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" });
+    const date = d.toLocaleDateString(locale, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "Europe/Sofia",
+    });
+    const time = d.toLocaleTimeString(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Sofia",
+    });
     return `${cap(date, lang)} · ${time}`;
   }
-  return cap(new Date(day.playedOn).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" }), lang);
+  return cap(
+    new Date(day.playedOn).toLocaleDateString(locale, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }),
+    lang
+  );
 }
+
+type Words = (typeof WORDS)[Lang];
 
 export function matchPreview(day: MatchdayView, lang: Lang = "bg"): Preview {
   const w = WORDS[lang];
   const when = whenOf(day, lang);
   const venue = day.venue?.name ?? null;
-  const n = Math.min(day.signups.length, 12);
-  const reserves = Math.max(0, day.signups.length - 12);
   const place = venue ? ` · ${venue}` : "";
 
   if (day.cancelledAt) {
@@ -101,16 +122,14 @@ export function matchPreview(day: MatchdayView, lang: Lang = "bg"): Preview {
       venue,
       count: day.cancelReason ?? w.cancelledBody,
       title: `${w.cancelledTitle} · ${when}`,
-      description: day.cancelReason ? w.cancelledWhy(day.cancelReason) : w.cancelledBody,
+      description: day.cancelReason
+        ? w.cancelledWhy(day.cancelReason)
+        : w.cancelledBody,
       tone: "cancelled",
     };
   }
   if (day.lockedAt) {
-    const result =
-      day.winner === null
-        ? null
-        : (day.winner === "draw" ? w.draw : w.won(day.winner)) +
-          (day.scoreA !== null && day.scoreB !== null ? ` · ${day.scoreA}:${day.scoreB}` : "");
+    const result = resultLine(day, w);
     return {
       badge: result ? w.result : w.teamsReady,
       when,
@@ -132,24 +151,66 @@ export function matchPreview(day: MatchdayView, lang: Lang = "bg"): Preview {
       tone: "full",
     };
   }
-  const full = n >= 12;
+  return { ...signUpPreview(day, w, when, place), when, venue };
+}
+
+/** "Team A won · 5:3", or null before the admin enters a result. */
+function resultLine(day: MatchdayView, w: Words): string | null {
+  if (day.winner === null) {
+    return null;
+  }
+  const winner = day.winner === "draw" ? w.draw : w.won(day.winner);
+  const score =
+    day.scoreA !== null && day.scoreB !== null
+      ? ` · ${day.scoreA}:${day.scoreB}`
+      : "";
+  return winner + score;
+}
+
+/** A game still taking names: how many are in, and whether it is full. */
+function signUpPreview(
+  day: MatchdayView,
+  w: Words,
+  when: string,
+  place: string
+): Omit<Preview, "when" | "venue"> {
+  const n = Math.min(day.signups.length, 12);
+  const title = `⚽ ${w.newGame} · ${when}`;
+  if (n < 12) {
+    return {
+      badge: w.newGame,
+      count: w.signed(n),
+      title,
+      description: `${w.openBody(n)}${place}`,
+      tone: "open",
+    };
+  }
+  const reserves = day.signups.length - 12;
   return {
-    badge: full ? w.full : w.newGame,
-    when,
-    venue,
-    count: full ? `${w.signed(12)}${reserves ? ` · ${w.reserves(reserves)}` : ""}` : w.signed(n),
-    title: `⚽ ${w.newGame} · ${when}`,
-    description: full
-      ? `${w.fullBody(reserves ? `, ${w.reserves(reserves)}` : "")}${place}`
-      : `${w.openBody(n)}${place}`,
-    tone: full ? "full" : "open",
+    badge: w.full,
+    count: `${w.signed(12)}${reserves ? ` · ${w.reserves(reserves)}` : ""}`,
+    title,
+    description: `${w.fullBody(reserves ? `, ${w.reserves(reserves)}` : "")}${place}`,
+    tone: "full",
   };
 }
 
 /** Changes whenever the preview would: list size, teams, lock, result, cancel. */
 export function previewVersion(day: MatchdayView): string {
-  const state = day.cancelledAt ? "x" : day.winner ? `r${day.winner}` : day.lockedAt ? "l" : day.proposals.length ? "t" : "";
-  return `${day.signups.length}${state}`;
+  return `${day.signups.length}${stateMark(day)}`;
+}
+
+function stateMark(day: MatchdayView): string {
+  if (day.cancelledAt) {
+    return "x";
+  }
+  if (day.winner) {
+    return `r${day.winner}`;
+  }
+  if (day.lockedAt) {
+    return "l";
+  }
+  return day.proposals.length ? "t" : "";
 }
 
 /**

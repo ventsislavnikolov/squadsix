@@ -5,18 +5,36 @@
 // the reader's language. Every action — refused or not — goes to the activity log.
 
 import { createServerFn } from "@tanstack/react-start";
-import { deleteCookie, getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server";
-import { type Coords, GAME_SECONDS, NOWCAST_SECONDS, type Nowcast, SOFIA } from "@/lib/weather";
+import {
+  deleteCookie,
+  getCookie,
+  getRequestHeader,
+  setCookie,
+} from "@tanstack/react-start/server";
 import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
-import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
 import type { Lang } from "@/domain/names";
-import { ruleProblem, TOGETHER_MAX, type RuleProblem } from "@/domain/rules";
-import { checkCredentials, endSession, isAdmin, requireAdmin, startSession } from "./auth";
+import { type RuleProblem, ruleProblem, TOGETHER_MAX } from "@/domain/rules";
+import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
+import {
+  type Coords,
+  GAME_SECONDS,
+  NOWCAST_SECONDS,
+  type Nowcast,
+  SOFIA,
+} from "@/lib/weather";
+import {
+  checkCredentials,
+  endSession,
+  isAdmin,
+  requireAdmin,
+  startSession,
+} from "./auth";
+import { resolveCoords } from "./geo";
 import { balanceWithJev } from "./jev-harness";
 import { logAction, readLog } from "./log";
+// biome-ignore lint/performance/noNamespaceImport: server-only, and `repo.` marks each database call; many server functions share their repo function's name.
 import * as repo from "./repo";
-import { resolveCoords } from "./geo";
 
 export type ErrorCode =
   | "exists"
@@ -54,28 +72,38 @@ const RATING = z
  * `crawler`: a link-preview fetcher (Messenger and the like), which reads only the head.
  * `me`: the player picked on this phone, from the cookie copy of that choice ("" if none).
  */
-export type Session = { lang: Lang; isAdmin: boolean; crawler: boolean; me: string };
+export interface Session {
+  crawler: boolean;
+  isAdmin: boolean;
+  lang: Lang;
+  me: string;
+}
 
-const CRAWLER = /bot|crawl|spider|facebookexternalhit|whatsapp|telegram|viber|slack|discord|preview/i;
+const CRAWLER =
+  /bot|crawl|spider|facebookexternalhit|whatsapp|telegram|viber|slack|discord|preview/iu;
 
-export const getSession = createServerFn({ method: "GET" }).handler((): Session => {
-  const me = getCookie(ME_COOKIE) ?? "";
-  return {
-    lang: getCookie("s6_lang") === "en" ? "en" : "bg",
-    isAdmin: isAdmin(),
-    crawler: CRAWLER.test(getRequestHeader("user-agent") ?? ""),
-    me: UUID.test(me) ? me : "",
-  };
-});
+export const getSession = createServerFn({ method: "GET" }).handler(
+  (): Session => {
+    const me = getCookie(ME_COOKIE) ?? "";
+    return {
+      lang: getCookie("s6_lang") === "en" ? "en" : "bg",
+      isAdmin: isAdmin(),
+      crawler: CRAWLER.test(getRequestHeader("user-agent") ?? ""),
+      me: UUID.test(me) ? me : "",
+    };
+  }
+);
 
 // Who's holding this phone is kept in localStorage, and again in this cookie. In-app
 // browsers (Messenger, Instagram) are quick to drop localStorage, but they keep a cookie
 // the server set, the same way they keep the language.
 const ME_COOKIE = "s6_me";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 export const rememberMe = createServerFn({ method: "POST" })
-  .validator(z.object({ playerId: z.union([z.string().uuid(), z.literal("")]) }))
+  .validator(
+    z.object({ playerId: z.union([z.string().uuid(), z.literal("")]) })
+  )
   .handler(({ data }) => {
     if (data.playerId) {
       // 400 days is the longest a browser will keep a cookie.
@@ -93,15 +121,27 @@ export const rememberMe = createServerFn({ method: "POST" })
 export const setLang = createServerFn({ method: "POST" })
   .validator(z.object({ lang: z.enum(["bg", "en"]) }))
   .handler(({ data }) => {
-    setCookie("s6_lang", data.lang, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+    setCookie("s6_lang", data.lang, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
   });
 
 export const login = createServerFn({ method: "POST" })
-  .validator(z.object({ email: z.string().max(200), password: z.string().max(200) }))
+  .validator(
+    z.object({ email: z.string().max(200), password: z.string().max(200) })
+  )
   .handler(async ({ data }) => {
     const ok = checkCredentials(data.email, data.password);
-    await logAction({ action: "admin.login", ok, actor: data.email.slice(0, 100) });
-    if (!ok) fail("bad-login");
+    await logAction({
+      action: "admin.login",
+      ok,
+      actor: data.email.slice(0, 100),
+    });
+    if (!ok) {
+      fail("bad-login");
+    }
     startSession();
   });
 
@@ -113,21 +153,27 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
 /* ----------------------------------------------------------------------- roster -- */
 
 export const getPickList = createServerFn({ method: "GET" }).handler(() =>
-  repo.pickList(isAdmin()),
+  repo.pickList(isAdmin())
 );
 
 /** The game still open (or today's), if any. While it exists, no new game. */
-export const getOpenMatch = createServerFn({ method: "GET" }).handler(async () => {
-  const id = await repo.openMatchdayId();
-  if (id) await clock(id);
-  return { id };
-});
-
-export const getVenues = createServerFn({ method: "GET" }).handler(() =>
-  repo.listVenues(isAdmin()),
+export const getOpenMatch = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const id = await repo.openMatchdayId();
+    if (id) {
+      await clock(id);
+    }
+    return { id };
+  }
 );
 
-export const getBalls = createServerFn({ method: "GET" }).handler(() => repo.ballTrail());
+export const getVenues = createServerFn({ method: "GET" }).handler(() =>
+  repo.listVenues(isAdmin())
+);
+
+export const getBalls = createServerFn({ method: "GET" }).handler(() =>
+  repo.ballTrail()
+);
 
 /** "I have the balls now", or "I gave them to X". On trust, like the sign-up list. */
 export const passBalls = createServerFn({ method: "POST" })
@@ -135,21 +181,28 @@ export const passBalls = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const admin = isAdmin();
     const allowed = admin || data.actorId !== null;
-    const moved = allowed && (await repo.passBalls(data.playerId, data.actorId));
+    const moved =
+      allowed && (await repo.passBalls(data.playerId, data.actorId));
     await logAction({
       action: "balls.pass",
       ok: allowed,
-      actor: data.actorId ? await repo.playerLabel(data.actorId) : admin ? "admin" : null,
+      actor: await actorLabel(data.actorId, admin),
       detail: { to: await repo.playerLabel(data.playerId), moved },
     });
-    if (!allowed) fail("who");
+    if (!allowed) {
+      fail("who");
+    }
   });
 
 export const addGuest = createServerFn({ method: "POST" })
   .validator(z.object({ name: z.string().trim().min(2).max(60) }))
   .handler(async ({ data }) => {
     const guest = await repo.addGuest(data.name);
-    await logAction({ action: "guest.add", actor: data.name, detail: { id: guest.id } });
+    await logAction({
+      action: "guest.add",
+      actor: data.name,
+      detail: { id: guest.id },
+    });
     return guest;
   });
 
@@ -163,24 +216,83 @@ export const getMatchday = createServerFn({ method: "GET" })
   });
 
 export const getMatchdays = createServerFn({ method: "GET" }).handler(() =>
-  repo.listMatchdays(),
+  repo.listMatchdays()
 );
 
-const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const TIME = z.string().regex(/^\d{2}:\d{2}$/);
+const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+const TIME = z.string().regex(/^\d{2}:\d{2}$/u);
 const VENUE = z.union([
   z.object({ id: z.uuid() }),
-  z.object({ name: z.string().trim().min(2).max(60), mapUrl: z.url().max(500).nullable() }),
+  z.object({
+    name: z.string().trim().min(2).max(60),
+    mapUrl: z.url().max(500).nullable(),
+  }),
 ]);
 
 async function venueId(v: z.infer<typeof VENUE>): Promise<string> {
-  return "id" in v ? v.id : repo.ensureVenue(v.name, v.mapUrl);
+  return "id" in v ? v.id : await repo.ensureVenue(v.name, v.mapUrl);
+}
+
+/** Who did it, for the log: the player picked on the phone, else the admin, else nobody. */
+async function actorLabel(
+  actorId: string | null,
+  admin: boolean
+): Promise<string | null> {
+  if (actorId) {
+    return await repo.playerLabel(actorId);
+  }
+  return admin ? "admin" : null;
+}
+
+type MatchInfo = NonNullable<Awaited<ReturnType<typeof repo.matchInfo>>>;
+
+/** A cancelled game, or an announced one past kick-off, takes no list changes. */
+function closedRefusal(info: MatchInfo): ErrorCode | null {
+  if (info.cancelled) {
+    return "cancelled";
+  }
+  return hasStarted(info.startsAt) && info.kind === "announced"
+    ? "started"
+    : null;
+}
+
+function makeTeamsRefusal(info: MatchInfo): ErrorCode | null {
+  if (info.cancelled) {
+    return "cancelled";
+  }
+  if (info.locked) {
+    return "locked";
+  }
+  if (info.squad !== SQUAD_SIZE) {
+    return "not-full";
+  }
+  if (info.hasTeams) {
+    return "exists";
+  }
+  return info.runs >= repo.MAX_RUNS_PER_MATCHDAY && !isAdmin()
+    ? "run-limit"
+    : null;
+}
+
+function rebalanceRefusal(info: MatchInfo): ErrorCode | null {
+  if (!isAdmin()) {
+    return "admin-only";
+  }
+  if (info.cancelled) {
+    return "cancelled";
+  }
+  if (info.locked) {
+    return "locked";
+  }
+  return info.squad === SQUAD_SIZE ? null : "not-full";
 }
 
 /** Today .. 14 days ahead, and not in the past. */
 async function checkWhen(date: string, time: string) {
   const w = await repo.checkWhen(date, time);
-  if (!w.future || w.days < 0 || w.days > MAX_DAYS_AHEAD) fail("bad-date");
+  if (!w.future || w.days < 0 || w.days > MAX_DAYS_AHEAD) {
+    fail("bad-date");
+  }
 }
 
 /** "Tuesday 20:00 at the office pitch" — people then sign up. One open game at a time. */
@@ -192,7 +304,7 @@ export const announce = createServerFn({ method: "POST" })
       venue: VENUE,
       note: z.string().trim().max(300).nullable(),
       actorId: z.uuid(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
     await checkWhen(data.date, data.time);
@@ -210,7 +322,9 @@ export const announce = createServerFn({ method: "POST" })
       matchdayId: id,
       detail: { date: data.date, time: data.time },
     });
-    if (!id) fail("exists");
+    if (!id) {
+      fail("exists");
+    }
     return { id };
   });
 
@@ -222,28 +336,42 @@ export const quickCreate = createServerFn({ method: "POST" })
       time: TIME.nullable(),
       venue: VENUE.nullable(),
       actorId: z.uuid().nullable(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
-    if (new Set(data.playerIds).size !== SQUAD_SIZE) fail("not-in-squad");
+    if (new Set(data.playerIds).size !== SQUAD_SIZE) {
+      fail("not-in-squad");
+    }
     const id = await repo.createQuick({
       playerIds: data.playerIds,
       time: data.time,
       venueId: data.venue ? await venueId(data.venue) : null,
       createdBy: data.actorId,
     });
-    await logAction({ action: "matchday.create", ok: id !== null, matchdayId: id });
-    if (!id) fail("exists");
+    await logAction({
+      action: "matchday.create",
+      ok: id !== null,
+      matchdayId: id,
+    });
+    if (!id) {
+      fail("exists");
+    }
     await runBalance(id, "manual");
     return { id };
   });
 
 /** Only the admin may change or cancel a game. */
 async function requireOpenAsAdmin(id: string) {
-  if (!isAdmin()) fail("admin-only");
+  if (!isAdmin()) {
+    fail("admin-only");
+  }
   const info = await repo.matchInfo(id);
-  if (!info) fail("not-found");
-  if (info.cancelled) fail("cancelled");
+  if (!info) {
+    fail("not-found");
+  }
+  if (info.cancelled) {
+    fail("cancelled");
+  }
   return info;
 }
 
@@ -256,11 +384,13 @@ export const editMatch = createServerFn({ method: "POST" })
       time: TIME,
       venue: VENUE,
       note: z.string().trim().max(300).nullable(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
     const info = await requireOpenAsAdmin(data.id);
-    if (info.locked || hasStarted(info.startsAt)) fail("started");
+    if (info.locked || hasStarted(info.startsAt)) {
+      fail("started");
+    }
     await checkWhen(data.date, data.time);
     const changes = await repo.editMatch(data.id, {
       date: data.date,
@@ -278,7 +408,11 @@ export const editMatch = createServerFn({ method: "POST" })
 
 export const cancelMatch = createServerFn({ method: "POST" })
   .validator(
-    z.object({ id: z.uuid(), actorId: z.uuid().nullable(), reason: z.string().trim().max(200).nullable() }),
+    z.object({
+      id: z.uuid(),
+      actorId: z.uuid().nullable(),
+      reason: z.string().trim().max(200).nullable(),
+    })
   )
   .handler(async ({ data }) => {
     await requireOpenAsAdmin(data.id);
@@ -293,24 +427,25 @@ export const cancelMatch = createServerFn({ method: "POST" })
 
 /** Sign yourself (or someone else, or a guest) up. Closes at kick-off. */
 export const signUp = createServerFn({ method: "POST" })
-  .validator(z.object({ matchdayId: z.uuid(), playerId: z.uuid(), actorId: z.uuid() }))
+  .validator(
+    z.object({ matchdayId: z.uuid(), playerId: z.uuid(), actorId: z.uuid() })
+  )
   .handler(async ({ data }) => {
     const info = await repo.matchInfo(data.matchdayId);
-    if (!info) fail("not-found");
+    if (!info) {
+      fail("not-found");
+    }
     // Guests only in the last 24 hours before an announced game; the admin can still add one.
     const tooEarlyForGuest =
       info.kind === "announced" &&
       !guestsOpen(info.startsAt) &&
       !isAdmin() &&
       (await repo.isGuest(data.playerId));
-    const refusal: ErrorCode | null = info.cancelled
-      ? "cancelled"
-      : hasStarted(info.startsAt) && info.kind === "announced"
-        ? "started"
-        : tooEarlyForGuest
-          ? "guest-early"
-          : null;
-    const added = refusal ? false : await repo.signUp(data.matchdayId, data.playerId, data.actorId);
+    const refusal: ErrorCode | null =
+      closedRefusal(info) ?? (tooEarlyForGuest ? "guest-early" : null);
+    const added = refusal
+      ? false
+      : await repo.signUp(data.matchdayId, data.playerId, data.actorId);
     await logAction({
       action: "signup.add",
       ok: added,
@@ -318,30 +453,38 @@ export const signUp = createServerFn({ method: "POST" })
       matchdayId: data.matchdayId,
       detail: { player: await repo.playerLabel(data.playerId), refusal },
     });
-    if (refusal) fail(refusal);
-    if (added) await afterListChange(data.matchdayId);
+    if (refusal) {
+      fail(refusal);
+    }
+    if (added) {
+      await afterListChange(data.matchdayId);
+    }
   });
 
 /** Take someone off: themselves, whoever added them, or the admin. */
 export const withdraw = createServerFn({ method: "POST" })
-  .validator(z.object({ matchdayId: z.uuid(), playerId: z.uuid(), actorId: z.uuid().nullable() }))
+  .validator(
+    z.object({
+      matchdayId: z.uuid(),
+      playerId: z.uuid(),
+      actorId: z.uuid().nullable(),
+    })
+  )
   .handler(async ({ data }) => {
     const [info, entry] = await Promise.all([
       repo.matchInfo(data.matchdayId),
       repo.signupOf(data.matchdayId, data.playerId),
     ]);
-    if (!info || !entry) fail("not-found");
+    if (!(info && entry)) {
+      fail("not-found");
+    }
     const allowed =
       isAdmin() ||
       (data.actorId !== null &&
         (data.actorId === data.playerId || data.actorId === entry.addedBy));
-    const refusal: ErrorCode | null = !allowed
-      ? "not-allowed"
-      : info.cancelled
-        ? "cancelled"
-        : hasStarted(info.startsAt) && info.kind === "announced"
-          ? "started"
-          : null;
+    const refusal: ErrorCode | null = allowed
+      ? closedRefusal(info)
+      : "not-allowed";
     await logAction({
       action: "signup.remove",
       ok: !refusal,
@@ -349,7 +492,9 @@ export const withdraw = createServerFn({ method: "POST" })
       matchdayId: data.matchdayId,
       detail: { player: await repo.playerLabel(data.playerId), refusal },
     });
-    if (refusal) fail(refusal);
+    if (refusal) {
+      fail(refusal);
+    }
     await repo.withdraw(data.matchdayId, data.playerId);
     await afterListChange(data.matchdayId);
   });
@@ -359,20 +504,17 @@ export const makeTeams = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const info = await repo.matchInfo(data.id);
-    if (!info) fail("not-found");
-    const refusal: ErrorCode | null = info.cancelled
-      ? "cancelled"
-      : info.locked
-        ? "locked"
-        : info.squad !== SQUAD_SIZE
-          ? "not-full"
-          : info.hasTeams
-            ? "exists"
-            : info.runs >= repo.MAX_RUNS_PER_MATCHDAY && !isAdmin()
-              ? "run-limit"
-              : null;
+    if (!info) {
+      fail("not-found");
+    }
+    const refusal = makeTeamsRefusal(info);
     if (refusal) {
-      await logAction({ action: "balance.run", ok: false, matchdayId: data.id, detail: { refusal } });
+      await logAction({
+        action: "balance.run",
+        ok: false,
+        matchdayId: data.id,
+        detail: { refusal },
+      });
       fail(refusal);
     }
     await runBalance(data.id, "manual");
@@ -383,18 +525,17 @@ export const rebalance = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const state = await repo.matchInfo(data.id);
-    if (!state) fail("not-found");
-    const refusal: ErrorCode | null = !isAdmin()
-      ? "admin-only"
-      : state.cancelled
-        ? "cancelled"
-        : state.locked
-          ? "locked"
-          : state.squad !== SQUAD_SIZE
-            ? "not-full"
-            : null;
+    if (!state) {
+      fail("not-found");
+    }
+    const refusal = rebalanceRefusal(state);
     if (refusal) {
-      await logAction({ action: "balance.run", ok: false, matchdayId: data.id, detail: { refusal } });
+      await logAction({
+        action: "balance.run",
+        ok: false,
+        matchdayId: data.id,
+        detail: { refusal },
+      });
       fail(refusal);
     }
     await runBalance(data.id, "manual");
@@ -403,9 +544,15 @@ export const rebalance = createServerFn({ method: "POST" })
   });
 
 export const vote = createServerFn({ method: "POST" })
-  .validator(z.object({ matchdayId: z.uuid(), proposalId: z.uuid(), playerId: z.uuid() }))
+  .validator(
+    z.object({ matchdayId: z.uuid(), proposalId: z.uuid(), playerId: z.uuid() })
+  )
   .handler(async ({ data }) => {
-    const ok = await repo.castVote(data.matchdayId, data.playerId, data.proposalId);
+    const ok = await repo.castVote(
+      data.matchdayId,
+      data.playerId,
+      data.proposalId
+    );
     await logAction({
       action: "vote.cast",
       ok,
@@ -413,7 +560,9 @@ export const vote = createServerFn({ method: "POST" })
       matchdayId: data.matchdayId,
       detail: { proposalId: data.proposalId },
     });
-    if (!ok) fail("locked");
+    if (!ok) {
+      fail("locked");
+    }
   });
 
 export const lock = createServerFn({ method: "POST" })
@@ -427,16 +576,26 @@ export const lock = createServerFn({ method: "POST" })
       matchdayId: data.id,
       detail: { proposalId: chosen },
     });
-    if (!admin) fail("admin-only");
-    if (!chosen) fail("locked");
+    if (!admin) {
+      fail("admin-only");
+    }
+    if (!chosen) {
+      fail("locked");
+    }
   });
 
 export const unlock = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const admin = isAdmin();
-    await logAction({ action: "matchday.unlock", ok: admin, matchdayId: data.id });
-    if (!admin) fail("admin-only");
+    await logAction({
+      action: "matchday.unlock",
+      ok: admin,
+      matchdayId: data.id,
+    });
+    if (!admin) {
+      fail("admin-only");
+    }
     await repo.unlockMatchday(data.id);
   });
 
@@ -447,34 +606,48 @@ export const setResult = createServerFn({ method: "POST" })
       winner: z.enum(["a", "b", "draw"]),
       scoreA: z.number().int().min(0).max(99).nullable(),
       scoreB: z.number().int().min(0).max(99).nullable(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
     const admin = isAdmin();
-    const ok = admin && (await repo.setResult(data.id, data.winner, data.scoreA, data.scoreB));
+    const ok =
+      admin &&
+      (await repo.setResult(data.id, data.winner, data.scoreA, data.scoreB));
     await logAction({
       action: "matchday.result",
       ok,
       matchdayId: data.id,
       detail: { winner: data.winner, scoreA: data.scoreA, scoreB: data.scoreB },
     });
-    if (!admin) fail("admin-only");
-    if (!ok) fail("not-locked");
+    if (!admin) {
+      fail("admin-only");
+    }
+    if (!ok) {
+      fail("not-locked");
+    }
   });
 
 /** The list changed: bring the twelve, the teams and the votes back in line. */
 async function afterListChange(matchdayId: string) {
   const outcome = await repo.reconcile(matchdayId);
-  if (outcome === "balance") await runBalance(matchdayId, "auto");
+  if (outcome === "balance") {
+    await runBalance(matchdayId, "auto");
+  }
   if (outcome !== "none") {
-    await logAction({ action: "signup.reconcile", matchdayId, detail: { outcome } });
+    await logAction({
+      action: "signup.reconcile",
+      matchdayId,
+      detail: { outcome },
+    });
   }
 }
 
 /** Whatever the clock says is due for this game — see repo.dueNow. */
 async function clock(matchdayId: string) {
   const due = await repo.dueNow(matchdayId);
-  if (due === "teams") await runBalance(matchdayId, "auto");
+  if (due === "teams") {
+    await runBalance(matchdayId, "auto");
+  }
   if (due === "lock") {
     const chosen = await repo.lockMatchday(matchdayId);
     await logAction({
@@ -507,13 +680,18 @@ async function runBalance(matchdayId: string, trigger: "manual" | "auto") {
       totalA: p.score.totalA,
       totalB: p.score.totalB,
       verdict: p.verdict,
-    })),
+    }))
   );
   await logAction({
     action: "balance.run",
     matchdayId,
     actor: trigger === "auto" ? "auto" : null,
-    detail: { source: result.source, model: result.model, error: result.error, trigger },
+    detail: {
+      source: result.source,
+      model: result.model,
+      error: result.error,
+      trigger,
+    },
   });
 }
 
@@ -536,15 +714,24 @@ export const getNowcast = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }): Promise<Nowcast | null> => {
     const key = process.env.RAINBOW_API_KEY;
-    if (!key) return null;
+    if (!key) {
+      return null;
+    }
     const hit = nowcasts.get(data.id);
-    if (hit && Date.now() - hit.at < NOWCAST_TTL_MS) return hit.value;
+    if (hit && Date.now() - hit.at < NOWCAST_TTL_MS) {
+      return hit.value;
+    }
 
     const place = await repo.matchPlace(data.id);
-    if (!place || place.starts === null || place.cancelled) return null;
+    if (!place || place.starts === null || place.cancelled) {
+      return null;
+    }
+    const { starts } = place;
     const now = Date.now() / 1000;
-    const end = place.starts + GAME_SECONDS;
-    if (place.starts - now > NOWCAST_SECONDS || now > end) return null;
+    const end = starts + GAME_SECONDS;
+    if (starts - now > NOWCAST_SECONDS || now > end) {
+      return null;
+    }
 
     let value: Nowcast | null = null;
     try {
@@ -555,17 +742,26 @@ export const getNowcast = createServerFn({ method: "GET" })
         });
       // Radar where there is one; their global (satellite) product where there isn't.
       let res = await ask("precip");
-      if (res.status === 404) res = await ask("precip-global");
+      if (res.status === 404) {
+        res = await ask("precip-global");
+      }
       if (res.ok) {
         const body = (await res.json()) as {
-          forecast?: { precipRate: number; precipType: string; timestampBegin: number }[];
+          forecast?: {
+            precipRate: number;
+            precipType: string;
+            timestampBegin: number;
+          }[];
         };
         const minutes = (body.forecast ?? [])
-          .filter((f) => f.timestampBegin >= place.starts! - 30 && f.timestampBegin < end)
+          .filter(
+            (f) => f.timestampBegin >= starts - 30 && f.timestampBegin < end
+          )
           .sort((a, b) => a.timestampBegin - b.timestampBegin);
-        if (minutes.length > 0) {
+        const [first] = minutes;
+        if (first) {
           value = {
-            from: minutes[0]!.timestampBegin,
+            from: first.timestampBegin,
             rates: minutes.map((f) => f.precipRate),
             snow: minutes.some((f) => f.precipType === "snow"),
           };
@@ -596,7 +792,7 @@ export const savePlayer = createServerFn({ method: "POST" })
       rating: RATING,
       isGuest: z.boolean(),
       hidden: z.boolean(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
     requireAdmin();
@@ -604,7 +800,12 @@ export const savePlayer = createServerFn({ method: "POST" })
     await logAction({
       action: "admin.player.save",
       actor: "admin",
-      detail: { id: saved.id, created: !data.id, hidden: data.hidden, rated: data.rating !== null },
+      detail: {
+        id: saved.id,
+        created: !data.id,
+        hidden: data.hidden,
+        rated: data.rating !== null,
+      },
     });
     return saved;
   });
@@ -616,12 +817,16 @@ export const saveVenue = createServerFn({ method: "POST" })
       name: z.string().trim().min(2).max(60),
       mapUrl: z.url().max(500).nullable(),
       hidden: z.boolean(),
-    }),
+    })
   )
   .handler(async ({ data }) => {
     requireAdmin();
     await repo.saveVenue(data);
-    await logAction({ action: "admin.venue.save", actor: "admin", detail: { id: data.id } });
+    await logAction({
+      action: "admin.venue.save",
+      actor: "admin",
+      detail: { id: data.id },
+    });
   });
 
 export const getLog = createServerFn({ method: "GET" }).handler(() => {
@@ -644,17 +849,26 @@ export const addRule = createServerFn({ method: "POST" })
         players: z.array(z.uuid()).min(2).max(TOGETHER_MAX),
       })
       .refine((r) => new Set(r.players).size === r.players.length)
-      .refine((r) => r.kind === "together" || r.players.length === 2),
+      .refine((r) => r.kind === "together" || r.players.length === 2)
   )
   .handler(async ({ data }) => {
     requireAdmin();
     const problem = ruleProblem(repo.toRules(await repo.listRules()), data);
     if (problem) {
-      await logAction({ action: "admin.rule.add", ok: false, actor: "admin", detail: { ...data, problem } });
+      await logAction({
+        action: "admin.rule.add",
+        ok: false,
+        actor: "admin",
+        detail: { ...data, problem },
+      });
       fail(problem);
     }
     const saved = await repo.addRule(data.kind, data.players);
-    await logAction({ action: "admin.rule.add", actor: "admin", detail: { id: saved.id, ...data } });
+    await logAction({
+      action: "admin.rule.add",
+      actor: "admin",
+      detail: { id: saved.id, ...data },
+    });
     return saved;
   });
 
@@ -663,6 +877,13 @@ export const removeRule = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin();
     const ok = await repo.removeRule(data.id);
-    await logAction({ action: "admin.rule.remove", ok, actor: "admin", detail: { id: data.id } });
-    if (!ok) fail("not-found");
+    await logAction({
+      action: "admin.rule.remove",
+      ok,
+      actor: "admin",
+      detail: { id: data.id },
+    });
+    if (!ok) {
+      fail("not-found");
+    }
   });

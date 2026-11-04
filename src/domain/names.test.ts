@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { bgToEn, enToBg, findGuest, nameFromInput, shortNames } from "./names";
 
-const p = (id: string, firstBg: string, lastBg: string, firstEn: string, lastEn: string) => ({
+const p = (
+  id: string,
+  firstBg: string,
+  lastBg: string,
+  firstEn: string,
+  lastEn: string
+) => ({
   id,
   firstBg,
   lastBg,
@@ -26,8 +32,8 @@ describe("shortNames", () => {
       p("1", "Тодор", "Петров", "Todd", "Petrov"),
       p("2", "Тодор", "Иванов", "Todor", "Ivanov"),
     ]);
-    expect(names.get("1")!.en).toBe("Todd P.");
-    expect(names.get("2")!.en).toBe("Todor I.");
+    expect(names.get("1")?.en).toBe("Todd P.");
+    expect(names.get("2")?.en).toBe("Todor I.");
   });
 
   it("falls back to the full surname when initials clash too", () => {
@@ -35,8 +41,8 @@ describe("shortNames", () => {
       p("1", "Иво", "Петров", "Ivo", "Petrov"),
       p("2", "Иво", "Павлов", "Ivo", "Pavlov"),
     ]);
-    expect(names.get("1")!.bg).toBe("Иво Петров");
-    expect(names.get("2")!.bg).toBe("Иво Павлов");
+    expect(names.get("1")?.bg).toBe("Иво Петров");
+    expect(names.get("2")?.bg).toBe("Иво Павлов");
   });
 });
 

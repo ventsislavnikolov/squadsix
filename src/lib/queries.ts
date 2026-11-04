@@ -16,16 +16,25 @@ import {
   getVenues,
 } from "@/server/functions";
 
+// A failed warm-up is not an error here: the query is retried, and fails visibly, when the
+// page renders it.
+const ignoreWarmUpFailure = () => undefined;
+
 /** Start reads without waiting for them; whoever renders them suspends until they land. */
-export function warm(qc: QueryClient, ...queries: { queryKey: readonly unknown[] }[]) {
-  for (const q of queries) void qc.ensureQueryData(q as never).catch(() => {});
+export function warm(
+  qc: QueryClient,
+  ...queries: { queryKey: readonly unknown[] }[]
+) {
+  for (const q of queries) {
+    qc.ensureQueryData(q as never).catch(ignoreWarmUpFailure);
+  }
 }
 
 /** Language and whether the admin is signed in. Changes only on explicit action. */
 export const sessionQuery = queryOptions({
   queryKey: ["session"],
   queryFn: () => getSession(),
-  staleTime: Infinity,
+  staleTime: Number.POSITIVE_INFINITY,
 });
 
 /** Drives the nav ("New game" vs "Game") and whether "/" shows the picker at all. */
@@ -49,7 +58,7 @@ export const matchdayQuery = (id: string) =>
     queryKey: ["matchday", id],
     queryFn: () => getMatchday({ data: { id } }),
     // Votes arrive from other phones; keep the page current without a manual refresh.
-    refetchInterval: 5_000,
+    refetchInterval: 5000,
   });
 
 /** Together and Apart rules. Admin-only. */

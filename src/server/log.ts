@@ -27,17 +27,17 @@ export type Action =
   | "admin.rule.remove"
   | "balls.pass";
 
-export type LogEntry = {
-  id: string;
-  at: string;
+export interface LogEntry {
   action: Action;
-  ok: boolean;
   actor: string | null;
-  matchdayId: string | null;
+  at: string;
   detail: { [key: string]: Json } | null;
+  id: string;
   ip: string | null;
+  matchdayId: string | null;
+  ok: boolean;
   userAgent: string | null;
-};
+}
 
 const RETENTION_DAYS = 90;
 

@@ -66,11 +66,16 @@
   --tracking-normal: 0.025em;
   --shadow-2xs: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 1px 2px -1px hsl(0 0% 0% / 0.1);
-  --shadow: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 1px 2px -1px hsl(0 0% 0% / 0.1);
-  --shadow-md: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 2px 4px -1px hsl(0 0% 0% / 0.1);
-  --shadow-lg: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 4px 6px -1px hsl(0 0% 0% / 0.1);
-  --shadow-xl: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 8px 10px -1px hsl(0 0% 0% / 0.1);
+  --shadow-sm:
+    0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow:
+    0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md:
+    0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg:
+    0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl:
+    0px 1px 5.5px 0px hsl(0 0% 0% / 0.1), 0px 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0px 1px 5.5px 0px hsl(0 0% 0% / 0.25);
   color-scheme: light;
 }
@@ -198,7 +203,8 @@
   --color-team-a: var(--team-a);
   --color-team-b: var(--team-b);
 
-  --font-sans: "Outfit Variable", "Onest Variable", ui-sans-serif, sans-serif, system-ui;
+  --font-sans:
+    "Outfit Variable", "Onest Variable", ui-sans-serif, sans-serif, system-ui;
   --font-heading: var(--font-sans);
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -228,24 +234,25 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-    scrollbar-width: thin;
+    /* biome-ignore lint/suspicious/useBaseline: a thin, quiet scrollbar where supported; browsers without it keep their own. */
     scrollbar-color: var(--color-border) transparent;
-  }
-  /* Keep room for the scrollbar on short pages too, so long pages (players, log)
-     don't sit a few pixels off from short ones. */
-  html {
-    scrollbar-gutter: stable;
+    /* biome-ignore lint/suspicious/useBaseline: as above, cosmetic only. */
+    scrollbar-width: thin;
+    @apply border-border outline-ring/50;
   }
 
   html {
+    /* Keep room for the scrollbar on short pages too, so long pages (players, log)
+       don't sit a few pixels off from short ones. */
+    /* biome-ignore lint/suspicious/useBaseline: without it a page only shifts by the scrollbar's width. */
+    scrollbar-gutter: stable;
     @apply font-sans;
   }
 
   body {
-    @apply bg-background text-foreground;
-    letter-spacing: var(--tracking-normal);
     -webkit-font-smoothing: antialiased;
+    letter-spacing: var(--tracking-normal);
+    @apply bg-background text-foreground;
   }
 
   .tabular-nums {
@@ -257,9 +264,9 @@
 @utility eyebrow {
   font-family: var(--font-mono);
   font-size: 10.5px;
+  color: color-mix(in oklab, var(--color-foreground) 50%, transparent);
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: color-mix(in oklab, var(--color-foreground) 50%, transparent);
 }
 
 /* The weather card (components/weather.tsx): a sky, clouds drifting across it, and rain
@@ -282,6 +289,7 @@
 .weather-stars {
   position: absolute;
   inset: 0;
+  /* biome-ignore lint/suspicious/useBaseline: the stars fade out towards the horizon where supported, and show evenly elsewhere. */
   mask-image: linear-gradient(to bottom, #000 30%, transparent 95%);
   animation: weather-twinkle 5s ease-in-out infinite alternate;
 }
@@ -290,7 +298,11 @@
 .weather-flash {
   position: absolute;
   inset: 0;
-  background: radial-gradient(70% 120% at 70% 0%, rgb(235 232 255 / 0.9), transparent 70%);
+  background: radial-gradient(
+    70% 120% at 70% 0%,
+    rgb(235 232 255 / 0.9),
+    transparent 70%
+  );
   opacity: 0;
   animation: weather-flash 11s linear infinite;
 }
