@@ -36,6 +36,21 @@ pnpm dev
 
 Schema: `db/schema.sql`. Placeholder roster: `db/seed.sql`.
 
+## Check
+
+```bash
+pnpm lint        # Biome (ultracite); pnpm fix applies its fixes
+pnpm typecheck   # TypeScript 7
+pnpm test        # Vitest with coverage; fails below 90% on any metric
+pnpm ci:local    # all three, as CI runs them
+```
+
+`pnpm install` sets up the git hooks (lefthook): Biome on staged files before a commit,
+commitlint on the message, and `pnpm ci:local` before a push. CI runs the same checks on
+every pull request and on `main`. Tests never reach the database, OpenRouter or a weather
+API: the server functions, `sql` and `fetch` are mocked. Agent and contributor notes:
+`AGENTS.md`.
+
 ## Later
 
 Players' own sign-in; anonymous peer ratings; rating suggestions from results.
@@ -56,7 +71,8 @@ deploys to production (Vercel project `squadsix`).
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org), with an
 optional gitmoji in front: `✨ feat: forecast card`, `fix(match): wrap the buttons`.
-A git hook checks the message when you commit, and a workflow checks every pull request.
+A git hook (lefthook) checks the message when you commit, and a workflow checks every
+pull request.
 
 When `main` moves, [semantic-release](https://semantic-release.org) reads the commits
 since the last tag and cuts a release: `fix` and `perf` make a patch (1.0.1), `feat` a
