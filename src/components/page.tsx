@@ -21,25 +21,29 @@ export function PageHead({
 }) {
   return (
     <header className="border-b border-fg/[0.06] pb-8">
-      {aside && (
+      {aside ? (
         <div className="flex items-center justify-between gap-4">
-          {eyebrow ? <p className="eyebrow min-w-0">{eyebrow}</p> : <span />}
+          {eyebrow ? <p className="min-w-0 eyebrow">{eyebrow}</p> : <span />}
           <div className="shrink-0">{aside}</div>
         </div>
-      )}
-      {eyebrow && !aside && <p className="eyebrow">{eyebrow}</p>}
+      ) : null}
+      {eyebrow && !aside ? <p className="eyebrow">{eyebrow}</p> : null}
       <h1
         className={cn(
-          "text-[1.9rem] font-semibold leading-[1.12] tracking-[-0.02em]",
-          eyebrow && "mt-3",
+          "text-[1.9rem] leading-[1.12] font-semibold tracking-[-0.02em]",
+          eyebrow && "mt-3"
         )}
       >
         {title}
       </h1>
-      {lead && (
-        <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-fg/55">{lead}</div>
-      )}
-      {actions && <div className="mt-6 flex flex-wrap gap-2.5">{actions}</div>}
+      {lead ? (
+        <div className="mt-3 max-w-[44rem] text-[14.5px] leading-[1.75] text-fg/55">
+          {lead}
+        </div>
+      ) : null}
+      {actions ? (
+        <div className="mt-6 flex flex-wrap gap-2.5">{actions}</div>
+      ) : null}
     </header>
   );
 }
@@ -58,12 +62,16 @@ export function Section({
   return (
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h2 className="text-[1.1rem] font-medium tracking-[-0.01em]">{title}</h2>
+        <h2 className="text-[1.1rem] font-medium tracking-[-0.01em]">
+          {title}
+        </h2>
         {actions}
       </div>
-      {note && (
-        <p className="mt-2 max-w-[46rem] text-[13px] leading-[1.7] text-fg/45">{note}</p>
-      )}
+      {note ? (
+        <p className="mt-2 max-w-[46rem] text-[13px] leading-[1.7] text-fg/45">
+          {note}
+        </p>
+      ) : null}
       <div className="mt-6">{children}</div>
     </section>
   );
@@ -90,7 +98,7 @@ export function Figure({
           tone === "confirmed" && "text-confirmed",
           tone === "warning" && "text-warning",
           tone === "a" && "text-team-a",
-          tone === "b" && "text-team-b",
+          tone === "b" && "text-team-b"
         )}
       >
         {value}
