@@ -1,11 +1,15 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Empty, PageHead, PANE } from "@/components/page";
+import { type ChangeEvent, useCallback, useId, useState } from "react";
+import { Empty, PANE, PageHead } from "@/components/page";
+import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ListSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
 import { venuesQuery, warm } from "@/lib/queries";
 import { cn } from "@/lib/utils";
@@ -23,7 +27,11 @@ function Venues() {
   const { data: venues } = useSuspenseQuery(venuesQuery);
   return (
     <div className={cn(PANE, "space-y-8 py-10")}>
-      <PageHead eyebrow={t.admin.eyebrow} title={t.venues.title} lead={t.venues.lead} />
+      <PageHead
+        eyebrow={t.admin.eyebrow}
+        lead={t.venues.lead}
+        title={t.venues.title}
+      />
       {venues.length === 0 ? (
         <Empty>{t.venues.empty}</Empty>
       ) : (
@@ -40,51 +48,84 @@ function Venues() {
 function Row({ venue }: { venue: Venue }) {
   const { t, error } = useI18n();
   const qc = useQueryClient();
-  const initial = { name: venue.name, mapUrl: venue.mapUrl ?? "", hidden: venue.hidden };
+  const initial = {
+    name: venue.name,
+    mapUrl: venue.mapUrl ?? "",
+    hidden: venue.hidden,
+  };
   const [draft, setDraft] = useState(initial);
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
   const save = useMutation({
     mutationFn: () =>
       saveVenue({
-        data: { id: venue.id, name: draft.name.trim(), mapUrl: draft.mapUrl.trim() || null, hidden: draft.hidden },
+        data: {
+          id: venue.id,
+          name: draft.name.trim(),
+          mapUrl: draft.mapUrl.trim() || null,
+          hidden: draft.hidden,
+        },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["venues"] }),
   });
+  const { mutate } = save;
+  const hiddenId = useId();
+  const onName = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) =>
+      setDraft((d) => ({ ...d, name: e.target.value })),
+    []
+  );
+  const onMapUrl = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) =>
+      setDraft((d) => ({ ...d, mapUrl: e.target.value })),
+    []
+  );
+  const onHidden = useCallback(
+    (hidden: boolean) => setDraft((d) => ({ ...d, hidden })),
+    []
+  );
+  const onSave = useCallback(() => mutate(), [mutate]);
 
   return (
     <div
       className={cn(
         "grid items-center gap-2 border-b border-fg/[0.07] py-3 sm:grid-cols-[1fr_1.4fr_auto]",
-        draft.hidden && "opacity-50",
+        draft.hidden && "opacity-50"
       )}
     >
-      <Input
-        aria-label={t.venues.name}
-        value={draft.name}
-        onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-      />
+      <Input aria-label={t.venues.name} onChange={onName} value={draft.name} />
       <Input
         aria-label={t.venues.mapUrl}
+        onChange={onMapUrl}
         placeholder={t.venues.mapUrl}
         type="url"
         value={draft.mapUrl}
-        onChange={(e) => setDraft({ ...draft, mapUrl: e.target.value })}
       />
       <div className="flex items-center justify-end gap-3">
-        <label className="flex items-center gap-1.5 text-[12px] text-fg/55">
-          <Switch checked={draft.hidden} onCheckedChange={(v) => setDraft({ ...draft, hidden: v })} />
+        <label
+          className="flex items-center gap-1.5 text-[12px] text-fg/55"
+          htmlFor={hiddenId}
+        >
+          <Switch
+            checked={draft.hidden}
+            id={hiddenId}
+            onCheckedChange={onHidden}
+          />
           {t.venues.hidden}
         </label>
         <Button
-          size="sm"
           className={cn(!dirty && "invisible")}
           disabled={!dirty || draft.name.trim().length < 2 || save.isPending}
-          onClick={() => save.mutate()}
+          onClick={onSave}
+          size="sm"
         >
           {t.common.save}
         </Button>
       </div>
-      {save.isError && <p className="col-span-full text-[12px] text-destructive">{error(save.error)}</p>}
+      {save.isError ? (
+        <p className="col-span-full text-[12px] text-destructive">
+          {error(save.error)}
+        </p>
+      ) : null}
     </div>
   );
 }

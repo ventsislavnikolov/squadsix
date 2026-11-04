@@ -1,16 +1,17 @@
-import { Resvg } from "@resvg/resvg-js";
-import { createFileRoute } from "@tanstack/react-router";
-import satori from "satori";
 // Satori reads woff, not woff2, and wants static weights. Inlined into the server bundle
 // so the function never has to find font files on disk.
 import cyr500 from "@fontsource/onest/files/onest-cyrillic-500-normal.woff?inline";
 import cyr700 from "@fontsource/onest/files/onest-cyrillic-700-normal.woff?inline";
 import lat500 from "@fontsource/onest/files/onest-latin-500-normal.woff?inline";
 import lat700 from "@fontsource/onest/files/onest-latin-700-normal.woff?inline";
+import { Resvg } from "@resvg/resvg-js";
+import { createFileRoute } from "@tanstack/react-router";
+import satori from "satori";
 import { matchPreview, type Preview } from "@/lib/preview";
 import { getMatchday } from "@/server/repo";
 
-const font = (dataUrl: string) => Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
+const font = (dataUrl: string) =>
+  Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
 const FONTS = [
   { name: "Onest", data: font(cyr500), weight: 500 as const },
   { name: "Onest Latin", data: font(lat500), weight: 500 as const },
@@ -18,7 +19,7 @@ const FONTS = [
   { name: "Onest Latin", data: font(lat700), weight: 700 as const },
 ];
 
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = /^[0-9a-f-]{36}$/iu;
 
 // The picture Messenger shows under a link to a game: what's happening, when, where,
 // and how full the list is — readable at thumbnail size.
@@ -26,13 +27,23 @@ export const Route = createFileRoute("/og/$id")({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const day = UUID.test(params.id) ? await getMatchday(params.id, false) : null;
-        if (!day) return new Response("Not found", { status: 404 });
-        const svg = await satori(<Card p={matchPreview(day)} filled={Math.min(day.signups.length, 12)} />, {
-          width: 1200,
-          height: 630,
-          fonts: FONTS,
-        });
+        const day = UUID.test(params.id)
+          ? await getMatchday(params.id, false)
+          : null;
+        if (!day) {
+          return new Response("Not found", { status: 404 });
+        }
+        const svg = await satori(
+          <Card
+            filled={Math.min(day.signups.length, 12)}
+            p={matchPreview(day)}
+          />,
+          {
+            width: 1200,
+            height: 630,
+            fonts: FONTS,
+          }
+        );
         const png = new Resvg(svg).render().asPng();
         return new Response(new Uint8Array(png), {
           headers: {
@@ -53,9 +64,13 @@ const TONE: Record<Preview["tone"], { bg: string; badge: string }> = {
   cancelled: { bg: "#7f1d1d", badge: "#fecaca" },
 };
 
+// One dot per place in the twelve, numbered 1–12.
+const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1);
+
 function Card({ p, filled }: { p: Preview; filled: number }) {
   const tone = TONE[p.tone];
-  const showDots = p.tone === "open" || (p.tone === "full" && p.badge === "Пълен");
+  const showDots =
+    p.tone === "open" || (p.tone === "full" && p.badge === "Пълен");
   return (
     <div
       style={{
@@ -70,7 +85,16 @@ function Card({ p, filled }: { p: Preview; filled: number }) {
         fontFamily: "Onest Latin, Onest",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 30, fontWeight: 500, opacity: 0.85 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          fontSize: 30,
+          fontWeight: 500,
+          opacity: 0.85,
+        }}
+      >
         {/* The app's mark: two halves of a pitch. */}
         <div
           style={{
@@ -83,36 +107,74 @@ function Card({ p, filled }: { p: Preview; filled: number }) {
             borderRadius: 6,
           }}
         >
-          <div style={{ position: "absolute", left: 27, top: 0, width: 3, height: 34, background: "rgba(255,255,255,0.7)" }} />
-          <div style={{ width: 14, height: 14, borderRadius: 7, border: "3px solid rgba(255,255,255,0.7)" }} />
+          <div
+            style={{
+              position: "absolute",
+              left: 27,
+              top: 0,
+              width: 3,
+              height: 34,
+              background: "rgba(255,255,255,0.7)",
+            }}
+          />
+          <div
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 7,
+              border: "3px solid rgba(255,255,255,0.7)",
+            }}
+          />
         </div>
         Squad Six · 6 × 6
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ fontSize: 44, fontWeight: 700, color: tone.badge, textTransform: "uppercase", letterSpacing: 2 }}>
+        <div
+          style={{
+            fontSize: 44,
+            fontWeight: 700,
+            color: tone.badge,
+            textTransform: "uppercase",
+            letterSpacing: 2,
+          }}
+        >
           {p.badge}
         </div>
-        <div style={{ fontSize: 84, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>{p.when}</div>
-        {p.venue && <div style={{ fontSize: 40, fontWeight: 500, opacity: 0.9 }}>{p.venue}</div>}
+        <div
+          style={{
+            fontSize: 84,
+            fontWeight: 700,
+            lineHeight: 1.05,
+            letterSpacing: -2,
+          }}
+        >
+          {p.when}
+        </div>
+        {p.venue ? (
+          <div style={{ fontSize: 40, fontWeight: 500, opacity: 0.9 }}>
+            {p.venue}
+          </div>
+        ) : null}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-        {showDots && (
+        {showDots ? (
           <div style={{ display: "flex", gap: 10 }}>
-            {Array.from({ length: 12 }, (_, i) => (
+            {SLOTS.map((slot) => (
               <div
-                key={i}
+                key={slot}
                 style={{
                   width: 34,
                   height: 34,
                   borderRadius: 17,
-                  background: i < filled ? "#ffffff" : "rgba(255,255,255,0.22)",
+                  background:
+                    slot <= filled ? "#ffffff" : "rgba(255,255,255,0.22)",
                 }}
               />
             ))}
           </div>
-        )}
+        ) : null}
         <div style={{ fontSize: 40, fontWeight: 700 }}>{p.count}</div>
       </div>
     </div>

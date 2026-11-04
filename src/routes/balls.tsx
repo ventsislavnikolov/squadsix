@@ -1,10 +1,21 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { HandIcon } from "lucide-react";
-import { Empty, PageHead, PANE, Section } from "@/components/page";
+import { useCallback } from "react";
+import { Empty, PANE, PageHead, Section } from "@/components/page";
 import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { WhoAmI } from "@/components/who-am-i";
 import { useI18n } from "@/lib/i18n";
 import { ballsQuery, pickListQuery, warm } from "@/lib/queries";
@@ -28,44 +39,64 @@ function Balls() {
   const byId = new Map(players.map((p) => [p.id, p]));
   const nameOf = (id: string) => name(byId.get(id)?.name);
 
-  const now = trail[0];
+  const [now] = trail;
   const holder = now ? nameOf(now.playerId) : t.balls.unknown;
   const mine = !!me && now?.playerId === me;
   // The holder hands them on; the admin can put them with anyone.
   const canGive = mine || isAdmin;
 
   const pass = useMutation({
-    mutationFn: (playerId: string) => passBalls({ data: { playerId, actorId: me || null } }),
+    mutationFn: (playerId: string) =>
+      passBalls({ data: { playerId, actorId: me || null } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["balls"] }),
   });
+  const { mutate } = pass;
+  const takeThem = useCallback(() => {
+    if (me) {
+      mutate(me);
+    }
+  }, [me, mutate]);
+  const giveTo = useCallback(
+    (id: string) => {
+      if (id) {
+        mutate(id);
+      }
+    },
+    [mutate]
+  );
 
   return (
     <div className={cn(PANE, "space-y-10 py-10")}>
       <PageHead
         eyebrow={t.balls.eyebrow}
-        title={t.balls.title(holder)}
         lead={
           <>
-            {now && <span className="block text-fg/70">{t.balls.since(t.date(now.since))}</span>}
+            {now ? (
+              <span className="block text-fg/70">
+                {t.balls.since(t.date(now.since))}
+              </span>
+            ) : null}
             {t.balls.lead}
           </>
         }
+        title={t.balls.title(holder)}
       />
 
       <WhoAmI compact />
 
       <div className="flex flex-wrap items-center gap-3">
         {mine ? (
-          <p className="text-[14px] font-medium text-primary">{t.balls.youHave}</p>
-        ) : (
-          me && (
-            <Button disabled={pass.isPending} onClick={() => pass.mutate(me)}>
-              <HandIcon /> {t.balls.mine}
-            </Button>
-          )
-        )}
-        {canGive && (
-          <Select value="" onValueChange={(id) => id && pass.mutate(id)}>
+          <p className="text-[14px] font-medium text-primary">
+            {t.balls.youHave}
+          </p>
+        ) : null}
+        {!mine && me ? (
+          <Button disabled={pass.isPending} onClick={takeThem}>
+            <HandIcon /> {t.balls.mine}
+          </Button>
+        ) : null}
+        {canGive ? (
+          <Select onValueChange={giveTo} value="">
             <SelectTrigger className="min-w-52">
               <SelectValue placeholder={t.balls.gave} />
             </SelectTrigger>
@@ -79,8 +110,10 @@ function Balls() {
                 ))}
             </SelectContent>
           </Select>
-        )}
-        {pass.isError && <p className="text-[13px] text-destructive">{error(pass.error)}</p>}
+        ) : null}
+        {pass.isError ? (
+          <p className="text-[13px] text-destructive">{error(pass.error)}</p>
+        ) : null}
       </div>
 
       <Section title={t.balls.trail}>
@@ -90,11 +123,15 @@ function Balls() {
           <ul className="border-t border-fg/[0.07]">
             {trail.map((h, i) => (
               <li
-                key={`${h.since}-${h.playerId}`}
                 className="flex items-baseline justify-between gap-4 border-b border-fg/[0.07] py-3 text-[14px]"
+                key={`${h.since}-${h.playerId}`}
               >
-                <span className={cn(i === 0 ? "font-medium" : "text-fg/70")}>{nameOf(h.playerId)}</span>
-                <span className="font-mono text-[12px] tabular-nums text-fg/45">{t.date(h.since, "short")}</span>
+                <span className={cn(i === 0 ? "font-medium" : "text-fg/70")}>
+                  {nameOf(h.playerId)}
+                </span>
+                <span className="font-mono text-[12px] text-fg/45 tabular-nums">
+                  {t.date(h.since, "short")}
+                </span>
               </li>
             ))}
           </ul>

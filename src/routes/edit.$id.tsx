@@ -1,7 +1,11 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { EventForm, venueInput } from "@/components/event-form";
-import { PageHead, PANE } from "@/components/page";
+import { PANE, PageHead } from "@/components/page";
 import { FormSkeleton } from "@/components/skeletons";
 import { useI18n } from "@/lib/i18n";
 import { matchdayQuery, venuesQuery, warm } from "@/lib/queries";
@@ -10,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { editMatch } from "@/server/functions";
 
 export const Route = createFileRoute("/edit/$id")({
-  loader: ({ context, params }) => warm(context.queryClient, matchdayQuery(params.id), venuesQuery),
+  loader: ({ context, params }) =>
+    warm(context.queryClient, matchdayQuery(params.id), venuesQuery),
   pendingComponent: FormSkeleton,
   component: EditGame,
 });
@@ -19,7 +24,9 @@ function EditGame() {
   const { id } = Route.useParams();
   const { t, error } = useI18n();
   const { data: day } = useSuspenseQuery(matchdayQuery(id));
-  if (!day) throw notFound();
+  if (!day) {
+    throw notFound();
+  }
   const [me] = useMe();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -28,7 +35,11 @@ function EditGame() {
   const initial = {
     date: day.playedOn,
     time: kickoff
-      ? kickoff.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Sofia" })
+      ? kickoff.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Europe/Sofia",
+        })
       : "20:00",
     venueId: day.venue?.id,
     note: day.note ?? "",
@@ -55,13 +66,17 @@ function EditGame() {
 
   return (
     <div className={cn(PANE, "space-y-8 py-10")}>
-      <PageHead eyebrow={t.event.editEyebrow} title={t.event.editTitle} lead={t.event.editLead} />
+      <PageHead
+        eyebrow={t.event.editEyebrow}
+        lead={t.event.editLead}
+        title={t.event.editTitle}
+      />
       <EventForm
-        initial={initial}
-        submitLabel={t.event.save}
-        pending={save.isPending}
         error={save.isError ? error(save.error) : null}
-        onSubmit={(v) => save.mutate(v)}
+        initial={initial}
+        onSubmit={save.mutate}
+        pending={save.isPending}
+        submitLabel={t.event.save}
       />
     </div>
   );
