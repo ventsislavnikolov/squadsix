@@ -1,8 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 import {
   bestSplits,
+  formatRating,
   overlap,
   type Player,
+  playerById,
+  RATING_STEPS,
   scoreSplit,
   splitKey,
   splitProblem,
@@ -133,5 +136,40 @@ describe("bestSplits with rules", () => {
     for (const s of splits) {
       expect(brokenRules(s, rules)).toBe(0);
     }
+  });
+});
+
+describe("playerById", () => {
+  it("finds a squad member and refuses an outsider", () => {
+    expect(playerById(byId, "p3")).toEqual({
+      id: "p3",
+      rating: 4,
+      isGuest: false,
+    });
+    expect(() => playerById(byId, "x")).toThrow("Unknown player id: x");
+  });
+});
+
+describe("splitKey", () => {
+  it("names the same game the same way whichever side is A", () => {
+    const split = {
+      teamA: ["p6", "p7", "p8", "p9", "p10", "p11"],
+      teamB: ["p0", "p1", "p2", "p3", "p4", "p5"],
+    };
+    const swapped = { teamA: split.teamB, teamB: split.teamA };
+    expect(splitKey(split)).toBe(splitKey(swapped));
+    expect(splitKey(split)).toBe("p0,p1,p2,p3,p4,p5|p10,p11,p6,p7,p8,p9");
+  });
+});
+
+describe("ratings", () => {
+  it("shows one decimal, and a question mark for the unrated", () => {
+    expect(formatRating(4)).toBe("4.0");
+    expect(formatRating(2.5)).toBe("2.5");
+    expect(formatRating(null)).toBe("?");
+  });
+
+  it("offers every half step from 1 to 5", () => {
+    expect(RATING_STEPS).toEqual([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]);
   });
 });

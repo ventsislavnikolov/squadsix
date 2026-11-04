@@ -44,6 +44,15 @@ describe("shortNames", () => {
     expect(names.get("1")?.bg).toBe("Иво Петров");
     expect(names.get("2")?.bg).toBe("Иво Павлов");
   });
+
+  it("keeps the first name alone when a clashing guest has no surname", () => {
+    const names = shortNames([
+      p("1", "Мартин", "", "Martin", ""),
+      p("2", "Мартин", "Иванов", "Martin", "Ivanov"),
+    ]);
+    expect(names.get("1")).toEqual({ bg: "Мартин", en: "Martin" });
+    expect(names.get("2")).toEqual({ bg: "Мартин И.", en: "Martin I." });
+  });
 });
 
 describe("transliteration", () => {
@@ -58,6 +67,11 @@ describe("transliteration", () => {
     expect(enToBg("Ivaylo")).toBe("Ивайло");
     expect(enToBg("Georgi")).toBe("Георги");
     expect(enToBg("Martin")).toBe("Мартин");
+  });
+
+  it("keeps what is not a Latin letter as typed", () => {
+    expect(enToBg("Ivo 2-ri")).toBe("Иво 2-ри");
+    expect(enToBg("Иво")).toBe("Иво");
   });
 
   it("splits a typed guest name into both scripts", () => {

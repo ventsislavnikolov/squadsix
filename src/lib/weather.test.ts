@@ -1,11 +1,14 @@
-import { assert, describe, expect, it } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import {
   blend,
   kindOf,
   MODELS,
   parseCoords,
+  SOFIA,
   sofiaInstant,
   strengthOf,
+  weatherQuery,
 } from "./weather";
 
 describe("parseCoords", () => {
@@ -194,6 +197,27 @@ describe("blend", () => {
       wetModels: 0,
     });
     expect(blend(hour({ [a]: null }))).toBeNull();
+    expect(blend({})).toBeNull();
+  });
+
+  it("counts measured rain as rain even when the sky says cloudy", () => {
+    const w = blended(
+      hour({
+        [a]: { temp: 12, mm: 0.5, code: 3 },
+        [b]: { temp: 12, mm: 0, code: 3 },
+      })
+    );
+    expect(w).toMatchObject({ kind: "rain", wetModels: 1 });
+  });
+
+  it("skips the hours no model reported before kick-off", () => {
+    const w = blended({
+      [`temperature_2m_${a}`]: [null, 10, 10],
+      [`weather_code_${a}`]: [null, 3, 3],
+      [`precipitation_${a}`]: [null, 0.5, 0],
+    });
+    expect(w.before).toEqual({ mm: 0.5, pitch: "damp" });
+    expect(w).toMatchObject({ feels: 10, wind: 0, night: false });
   });
 });
 
@@ -203,5 +227,54 @@ describe("strengthOf", () => {
     expect(strengthOf(1.5)).toBe("light");
     expect(strengthOf(4)).toBe("moderate");
     expect(strengthOf(9)).toBe("heavy");
+  });
+});
+
+describe("weatherQuery", () => {
+  const kickoff = "2026-10-13T17:00:00.000Z"; // 20:00 in Sofia
+  const fetchMock = vi.fn<typeof fetch>();
+
+  const run = async (now: string) => {
+    vi.useFakeTimers({ now: new Date(now), toFake: ["Date"] });
+    vi.stubGlobal("fetch", fetchMock);
+    return await new QueryClient().fetchQuery(weatherQuery(kickoff, SOFIA));
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  it("asks every model for the day before and the hour of kick-off, on Sofia's clock", async () => {
+    const [model] = MODELS;
+    fetchMock.mockResolvedValue(
+      Response.json({
+        hourly: {
+          [`temperature_2m_${model}`]: [11, 12],
+          [`weather_code_${model}`]: [0, 1],
+        },
+      })
+    );
+    const w = await run("2026-10-12T09:00:00.000Z");
+    expect(w).toMatchObject({ kind: "partly", temp: 12, models: 1 });
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url.searchParams.get("start_hour")).toBe("2026-10-12T20:00");
+    expect(url.searchParams.get("end_hour")).toBe("2026-10-13T20:00");
+    expect(url.searchParams.get("models")).toBe(MODELS.join(","));
+    expect(url.searchParams.get("latitude")).toBe(String(SOFIA.lat));
+  });
+
+  it("does not ask beyond the forecast horizon or long after the game", async () => {
+    expect(await run("2026-09-20T09:00:00.000Z")).toBeNull();
+    expect(await run("2026-10-13T20:00:00.000Z")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows nothing when the forecast service fails or has no hours", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("down", { status: 503 }));
+    expect(await run("2026-10-13T12:00:00.000Z")).toBeNull();
+    fetchMock.mockResolvedValueOnce(Response.json({}));
+    expect(await run("2026-10-13T12:00:00.000Z")).toBeNull();
   });
 });

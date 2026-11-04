@@ -1,5 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { brokenRules, NO_RULES, type Rules, ruleProblem } from "./rules";
+import {
+  brokenRules,
+  inPlay,
+  NO_RULES,
+  type Rules,
+  ruleProblem,
+} from "./rules";
+
+describe("inPlay", () => {
+  const rules: Rules = {
+    together: [
+      ["a", "b", "c"],
+      ["d", "e"],
+    ],
+    apart: [
+      ["a", "f"],
+      ["g", "h"],
+    ],
+  };
+
+  it("keeps whoever of a rule's players is here and drops idle rules", () => {
+    expect(inPlay(rules, ["a", "b", "d", "f", "g"])).toEqual({
+      together: [["a", "b"]],
+      apart: [["a", "f"]],
+    });
+  });
+
+  it("is empty when nobody in the rules plays", () => {
+    expect(inPlay(rules, ["x", "y"])).toEqual(NO_RULES);
+  });
+});
 
 const split = {
   teamA: ["p0", "p1", "p2", "p3", "p4", "p5"],
@@ -97,5 +127,10 @@ describe("ruleProblem", () => {
     expect(
       ruleProblem(rules, { kind: "apart", players: ["d", "f"] })
     ).toBeNull();
+  });
+
+  it("has nothing to check for an Apart rule without two players", () => {
+    expect(ruleProblem(rules, { kind: "apart", players: ["c"] })).toBeNull();
+    expect(ruleProblem(rules, { kind: "apart", players: [] })).toBeNull();
   });
 });

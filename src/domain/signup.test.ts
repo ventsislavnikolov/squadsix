@@ -99,6 +99,23 @@ describe("patchLockedTeams", () => {
     expect(filled.teamB).toEqual(["b1", "b3", "g1"]);
   });
 
+  it("fills Team A first when it is the short one, or both are even", () => {
+    const short = patchLockedTeams(teams, ["a1", "a3", "b1", "b2", "b3"]);
+    expect(short.teamA).toEqual(["a1", "a3"]);
+    const filled = patchLockedTeams(short, [
+      "a1",
+      "a3",
+      "b1",
+      "b2",
+      "b3",
+      "g1",
+      "g2",
+    ]);
+    // g1 evens the sides; on a tie the next arrival goes to Team A.
+    expect(filled.teamA).toEqual(["a1", "a3", "g1", "g2"]);
+    expect(filled.teamB).toEqual(["b1", "b2", "b3"]);
+  });
+
   it("reports no change when the squad is the same", () => {
     expect(
       patchLockedTeams(teams, [...teams.teamA, ...teams.teamB]).changed
