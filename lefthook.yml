@@ -1,0 +1,31 @@
+# Git hooks, installed by the `prepare` script
+# (scripts/install-git-hooks.mjs) on install.
+#
+# pre-commit: Biome checks the staged files and refuses the commit on any
+# problem; fix with `pnpm exec biome check --write <files>`. It does not fix in
+# place: lefthook's `stage_fixed` hides unstaged changes while the hook runs,
+# and an interrupted hook then loses them.
+pre-commit:
+  jobs:
+    - name: biome
+      run: pnpm exec biome check --no-errors-on-unmatched {staged_files}
+      glob: "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc,css,yml,yaml}"
+
+# commit-msg: conventional commits (commitlint.config.*).
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+
+# pre-push: `pnpm ci:local`, the same fail-fast checks CI runs, so a push
+# never breaks main or the deploy.
+pre-push:
+  jobs:
+    - name: ci-local
+      run: pnpm ci:local
+      # Skipped when every pushed file is docs or GitHub config: those
+      # cannot break the build, and CI on main still checks everything.
+      exclude:
+        - ".github/**"
+        - "docs/**"
+        - "*.md"
