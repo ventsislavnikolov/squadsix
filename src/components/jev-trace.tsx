@@ -36,10 +36,9 @@ export function JevTrace({ steps }: { steps: HarnessStep[] }) {
         return s.mode === "jev" ? t.trace.decideJev : t.trace.decideFallback;
       case "error":
         return t.trace.error;
-      default: {
-        const unknown: never = s;
-        return unknown;
-      }
+      // A step kind this version does not know (an older or newer trace): no label.
+      default:
+        return null;
     }
   };
   const byJev = (s: HarnessStep) =>
@@ -146,10 +145,9 @@ function StepDetail({ step }: { step: HarnessStep }) {
           )}
         </div>
       );
-    default: {
-      const unknown: never = step;
-      return unknown;
-    }
+    // A step kind this version does not know: no details, rather than a crash.
+    default:
+      return null;
   }
 }
 
