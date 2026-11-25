@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SQUAD_SIZE } from "@/domain/balance";
-import { guestsOpen, guestsOpenAt, hasStarted } from "@/domain/signup";
+import { guestsOpen, guestsOpenAt, hasStarted, mayEdit } from "@/domain/signup";
 import { useI18n } from "@/lib/i18n";
 import { shareUrl } from "@/lib/preview";
 import { ballsQuery, pickListQuery } from "@/lib/queries";
@@ -119,7 +119,16 @@ export function EventInfo({
   );
 }
 
-/** Edit and cancel. The server lets whoever announced the game do both; the buttons are admin-only. */
+/** An announced game that hasn't started, and someone `mayEdit` lets change it. */
+export function canEdit(day: MatchdayView, admin: boolean, me: string) {
+  return (
+    day.kind === "announced" &&
+    !(day.cancelledAt || day.lockedAt || hasStarted(day.startsAt)) &&
+    mayEdit({ admin, actorId: me || null, createdBy: day.createdBy })
+  );
+}
+
+/** Edit for the admin and whoever announced the game; cancel for the admin alone. */
 export function OwnerActions({ day }: { day: MatchdayView }) {
   const { t, error, isAdmin } = useI18n();
   const [me] = useMe();
@@ -141,11 +150,10 @@ export function OwnerActions({ day }: { day: MatchdayView }) {
     onSuccess: refresh,
   });
 
-  if (!isAdmin || day.cancelledAt) {
+  const editable = canEdit(day, isAdmin, me);
+  if (day.cancelledAt || !(isAdmin || editable)) {
     return null;
   }
-  const editable =
-    !(day.lockedAt || hasStarted(day.startsAt)) && day.kind === "announced";
 
   return (
     <>
@@ -156,27 +164,29 @@ export function OwnerActions({ day }: { day: MatchdayView }) {
           </Link>
         </Button>
       ) : null}
-      <ConfirmButton
-        confirmLabel={t.event.cancel}
-        description={
-          <>
-            {t.event.cancelBody}
-            <Input
-              className="mt-3"
-              maxLength={200}
-              onChange={changeReason}
-              placeholder={t.event.cancelReason}
-              value={reason}
-            />
-          </>
-        }
-        disabled={cancel.isPending}
-        onConfirm={cancel.mutate}
-        title={t.event.cancelTitle}
-        variant="ghost"
-      >
-        <Ban /> {t.event.cancel}
-      </ConfirmButton>
+      {isAdmin ? (
+        <ConfirmButton
+          confirmLabel={t.event.cancel}
+          description={
+            <>
+              {t.event.cancelBody}
+              <Input
+                className="mt-3"
+                maxLength={200}
+                onChange={changeReason}
+                placeholder={t.event.cancelReason}
+                value={reason}
+              />
+            </>
+          }
+          disabled={cancel.isPending}
+          onConfirm={cancel.mutate}
+          title={t.event.cancelTitle}
+          variant="ghost"
+        >
+          <Ban /> {t.event.cancel}
+        </ConfirmButton>
+      ) : null}
       {cancel.isError ? (
         <p className="text-[13px] text-destructive">{error(cancel.error)}</p>
       ) : null}

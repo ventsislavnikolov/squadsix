@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sofiaToday } from "@/components/event-form";
+import { sofiaInstant } from "@/lib/weather";
 import { matchday, roster, VENUE } from "../../test/fixtures";
 import { answerSession, offline, renderApp } from "../../test/render-app";
 import {
@@ -28,9 +30,11 @@ describe("edit game page", () => {
 
   it("starts from the game as it is and saves the changes", async () => {
     answerSession({ isAdmin: true, me: "p2" });
+    // Ahead of today: the Day field won't take a date in the past.
+    const date = sofiaToday(3);
     const day = matchday({
-      playedOn: "2026-11-06",
-      startsAt: "2026-11-06T17:30:00.000Z",
+      playedOn: date,
+      startsAt: sofiaInstant(date, "19:30"),
       note: "Bring water",
     });
     getMatchday.mockResolvedValue(day);
@@ -38,7 +42,7 @@ describe("edit game page", () => {
     const { user, router } = renderApp("/edit/m1");
     const note = await screen.findByLabelText("Note (optional)");
     expect(note).toHaveProperty("value", "Bring water");
-    expect(screen.getByLabelText("Day")).toHaveProperty("value", "2026-11-06");
+    expect(screen.getByLabelText("Day")).toHaveProperty("value", date);
     expect(screen.getByLabelText("Time")).toHaveProperty("value", "19:30");
     await user.clear(note);
     await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
@@ -47,7 +51,7 @@ describe("edit game page", () => {
         data: {
           id: "m1",
           actorId: "p2",
-          date: "2026-11-06",
+          date,
           time: "19:30",
           venue: { id: "v1" },
           note: null,

@@ -541,11 +541,33 @@ describe("edit and cancel", () => {
     r.checkWhen.mockResolvedValue({ future: true, days: 3 });
   });
 
-  it("is for the admin only", async () => {
-    await expect(editMatch({ data: edit })).rejects.toThrow("admin-only");
+  it("lets only the admin cancel, even the one who announced it", async () => {
+    r.matchInfo.mockResolvedValue(info({ createdBy: ALICE }));
     await expect(
-      cancelMatch({ data: { id: MATCH, actorId: null, reason: null } })
+      cancelMatch({ data: { id: MATCH, actorId: ALICE, reason: null } })
     ).rejects.toThrow("admin-only");
+    expect(r.cancelMatch).not.toHaveBeenCalled();
+  });
+
+  it("lets whoever announced it edit, and nobody else but the admin", async () => {
+    r.matchInfo.mockResolvedValue(info({ createdBy: ALICE }));
+    await expect(editMatch({ data: edit })).rejects.toThrow("not-allowed");
+    await expect(
+      editMatch({ data: { ...edit, actorId: BOB } })
+    ).rejects.toThrow("not-allowed");
+    expect(r.editMatch).not.toHaveBeenCalled();
+
+    r.editMatch.mockResolvedValue(["venue"] as never);
+    await editMatch({
+      data: { ...edit, actorId: ALICE, venue: { name: "Park", mapUrl: null } },
+    });
+    expect(r.ensureVenue).toHaveBeenCalledWith("Park", null);
+    expect(lastLog()).toEqual({
+      action: "matchday.edit",
+      actor: `label:${ALICE}`,
+      matchdayId: MATCH,
+      detail: { changes: ["venue"] },
+    });
   });
 
   it("needs a game that exists and is not cancelled", async () => {

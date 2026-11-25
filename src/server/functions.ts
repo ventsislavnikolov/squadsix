@@ -15,7 +15,12 @@ import { z } from "zod";
 import { SQUAD_SIZE } from "@/domain/balance";
 import type { Lang } from "@/domain/names";
 import { type RuleProblem, ruleProblem, TOGETHER_MAX } from "@/domain/rules";
-import { guestsOpen, hasStarted, MAX_DAYS_AHEAD } from "@/domain/signup";
+import {
+  guestsOpen,
+  hasStarted,
+  MAX_DAYS_AHEAD,
+  mayEdit,
+} from "@/domain/signup";
 import {
   type Coords,
   GAME_SECONDS,
@@ -360,17 +365,30 @@ export const quickCreate = createServerFn({ method: "POST" })
     return { id };
   });
 
-/** Only the admin may change or cancel a game. */
-async function requireOpenAsAdmin(id: string) {
-  if (!isAdmin()) {
-    fail("admin-only");
-  }
+async function requireOpen(id: string) {
   const info = await repo.matchInfo(id);
   if (!info) {
     fail("not-found");
   }
   if (info.cancelled) {
     fail("cancelled");
+  }
+  return info;
+}
+
+/** Only the admin may cancel a game. */
+function requireOpenAsAdmin(id: string) {
+  if (!isAdmin()) {
+    fail("admin-only");
+  }
+  return requireOpen(id);
+}
+
+/** The admin or whoever announced it may change a game (`mayEdit`). */
+async function requireOpenEditor(id: string, actorId: string | null) {
+  const info = await requireOpen(id);
+  if (!mayEdit({ admin: isAdmin(), actorId, createdBy: info.createdBy })) {
+    fail("not-allowed");
   }
   return info;
 }
@@ -387,7 +405,7 @@ export const editMatch = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data }) => {
-    const info = await requireOpenAsAdmin(data.id);
+    const info = await requireOpenEditor(data.id, data.actorId);
     if (info.locked || hasStarted(info.startsAt)) {
       fail("started");
     }

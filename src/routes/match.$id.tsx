@@ -28,6 +28,7 @@ import { PANE, PageHead, Section } from "@/components/page";
 import { ProposalCard } from "@/components/proposal-card";
 import {
   AnnounceShare,
+  canEdit,
   EventInfo,
   OwnerActions,
   SignupPanel,
@@ -223,7 +224,10 @@ function MatchPage() {
               doLock={doLock}
               doUnlock={doUnlock}
             />
-          ) : undefined
+          ) : (
+            // Whoever announced the game can change it; the rest is the admin's.
+            canEdit(day, false, me) && <OwnerActions day={day} />
+          )
         }
         aside={asideFor(stage, day, byId, chosen)}
         eyebrow={hasTeams || cancelled ? t.match.eyebrow(when) : t.nav.match}

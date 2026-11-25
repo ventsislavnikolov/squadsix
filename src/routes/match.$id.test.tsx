@@ -97,6 +97,28 @@ describe("match page", () => {
       expect(document.title).toBe("Squad Six");
     });
 
+    it("offers Edit, and no Cancel, to whoever announced it", async () => {
+      answerSession({ me: "p1" });
+      getMatchday.mockResolvedValue(
+        matchday({ createdBy: "p1", startsAt: hoursFromNow(48) })
+      );
+      renderApp("/match/m1");
+      expect(
+        (await screen.findByRole("link", { name: "Edit" })).getAttribute("href")
+      ).toBe("/edit/m1");
+      expect(screen.queryByRole("button", { name: "Cancel game" })).toBeNull();
+    });
+
+    it("offers no Edit to anyone else", async () => {
+      answerSession({ me: "p2" });
+      getMatchday.mockResolvedValue(
+        matchday({ createdBy: "p1", startsAt: hoursFromNow(48) })
+      );
+      renderApp("/match/m1");
+      expect(await screen.findByText("Office pitch")).toBeDefined();
+      expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    });
+
     it("shows not found when there is no such game", async () => {
       answerSession();
       getMatchday.mockResolvedValue(null);

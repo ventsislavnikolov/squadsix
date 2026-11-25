@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   guestsOpen,
   hasStarted,
+  mayEdit,
   orderSignups,
   patchLockedTeams,
   splitSquad,
@@ -138,5 +139,33 @@ describe("timing", () => {
     expect(guestsOpen(kickoff, Date.parse(hoursBefore(1)))).toBe(true);
     // A quick game has no kick-off time, so no waiting.
     expect(guestsOpen(null)).toBe(true);
+  });
+});
+
+describe("mayEdit", () => {
+  const creator = "p1";
+
+  it("lets the admin edit any game", () => {
+    expect(mayEdit({ admin: true, actorId: null, createdBy: creator })).toBe(
+      true
+    );
+  });
+
+  it("lets whoever announced it edit", () => {
+    expect(
+      mayEdit({ admin: false, actorId: creator, createdBy: creator })
+    ).toBe(true);
+  });
+
+  it("refuses everyone else, and a game nobody is named on", () => {
+    expect(mayEdit({ admin: false, actorId: "p2", createdBy: creator })).toBe(
+      false
+    );
+    expect(mayEdit({ admin: false, actorId: null, createdBy: creator })).toBe(
+      false
+    );
+    expect(mayEdit({ admin: false, actorId: null, createdBy: null })).toBe(
+      false
+    );
   });
 });

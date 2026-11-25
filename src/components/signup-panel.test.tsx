@@ -205,6 +205,27 @@ describe("OwnerActions", () => {
     expect(container.textContent).toBe("ready");
   });
 
+  it("lets whoever announced the game edit it, but not cancel it", async () => {
+    localStorage.setItem("s6-me", ME);
+    renderComponent(<OwnerActions day={day({ createdBy: ME })} />);
+    expect(
+      (await screen.findByRole("link", { name: "Edit" })).getAttribute("href")
+    ).toBe("/edit/m1");
+    expect(screen.queryByRole("button", { name: "Cancel game" })).toBeNull();
+  });
+
+  it("shows the announcer nothing once the game is locked", async () => {
+    localStorage.setItem("s6-me", ME);
+    const { container } = renderComponent(
+      <>
+        <span>ready</span>
+        <OwnerActions day={day({ createdBy: ME, lockedAt: at(-1) })} />
+      </>
+    );
+    await screen.findByText("ready");
+    expect(container.textContent).toBe("ready");
+  });
+
   it("shows nothing for a cancelled game", async () => {
     const { container } = renderComponent(
       <>

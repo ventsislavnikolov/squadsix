@@ -106,3 +106,16 @@ export function teamsDue(startsAt: string, now = Date.now()): boolean {
 export function hasStarted(startsAt: string | null, now = Date.now()): boolean {
   return startsAt !== null && now >= Date.parse(startsAt);
 }
+
+/**
+ * Who may change an announcement's day, time, place and note: the admin, or whoever
+ * announced it — the name picked on their phone, on trust, like everything else.
+ * Cancelling stays the admin's alone.
+ */
+export function mayEdit(who: {
+  admin: boolean;
+  actorId: string | null;
+  createdBy: string | null;
+}): boolean {
+  return who.admin || (who.actorId !== null && who.actorId === who.createdBy);
+}
